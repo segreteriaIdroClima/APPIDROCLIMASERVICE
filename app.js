@@ -11,6 +11,7 @@ const btnLogin = document.getElementById('btn-login');
 const loginText = document.getElementById('login-text');
 const loginSpinner = document.getElementById('login-spinner');
 const loginError = document.getElementById('login-error');
+const btnInstall = document.getElementById('btn-install');
 const btnLogout = document.getElementById('btn-logout');
 const userGreeting = document.getElementById('user-greeting');
 const appsContainer = document.getElementById('apps-container');
@@ -33,7 +34,28 @@ const tablePermessiBody = document.getElementById('permessi-body');
 let currentUser = null;
 let adminData = null; // { utenti, profili, apps, permessi }
 
-// Registrazione Service Worker per PWA
+// Registrazione Service Worker per PWA e Caching PWA Install
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt', (e) => {
+    // Previeni apparizione banner automatico
+    e.preventDefault();
+    deferredPrompt = e;
+    // Mostra il pulsante di installazione
+    btnInstall.classList.remove('hidden');
+});
+
+btnInstall.addEventListener('click', async () => {
+    if (deferredPrompt) {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === 'accepted') {
+            console.log('PWA Installata dal bottone!');
+        }
+        deferredPrompt = null;
+        btnInstall.classList.add('hidden');
+    }
+});
+
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         navigator.serviceWorker.register('sw.js')

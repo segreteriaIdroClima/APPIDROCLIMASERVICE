@@ -23,9 +23,14 @@
     <div id="login-screen" class="screen active">
         <div class="login-card glass">
             <div class="logo-container">
-                <img src="idroclima-app-192.png" alt="Logo Idroclima" class="brand-icon">
+                <img src="idroclima-app-192.png" alt="Logo Idroclima" class="brand-icon"
+                    onerror="this.src='https://cdn-icons-png.flaticon.com/512/2942/2942784.png'; this.style.filter='drop-shadow(0 0 0 white)'">
                 <h1>Portale Aziendale</h1>
                 <p>Accedi per continuare</p>
+                <button id="btn-install" class="btn-secondary-small hidden"
+                    style="margin: 15px auto 0 auto; width: fit-content; background: #eab308; color: #fff; border-radius: 20px;">
+                    <i class="fa-solid fa-download"></i> Installa App
+                </button>
             </div>
 
             <form id="login-form">
