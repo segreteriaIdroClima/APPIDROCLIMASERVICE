@@ -17,6 +17,12 @@ const userGreeting = document.getElementById('user-greeting');
 const appsContainer = document.getElementById('apps-container');
 const loadingApps = document.getElementById('loading-apps');
 
+// Elementi iFrame
+const iframeScreen = document.getElementById('iframe-screen');
+const appIframe = document.getElementById('app-iframe');
+const iframeTitle = document.getElementById('iframe-title');
+const btnCloseIframe = document.getElementById('btn-close-iframe');
+
 // Elementi Admin
 const adminScreen = document.getElementById('admin-screen');
 const btnAdminBack = document.getElementById('btn-admin-back');
@@ -188,13 +194,13 @@ function renderApps(apps) {
     apps.forEach(app => {
         const card = document.createElement('a');
         card.className = 'app-card ' + (app.isAllowed ? '' : 'disabled');
+        card.href = '#';
 
-        // Se permesso, aggiungi href target. Altrimenti apri alert null.
         if (app.isAllowed) {
-            // Per aprire nella stessa PWA (come finestra) usa target="_self" o "_blank"
-            // Se si vuole che la web app sostituisca la schermata, usa "_self"
-            card.href = app.link;
-            card.target = "_self";
+            card.onclick = (e) => {
+                e.preventDefault();
+                openAppInIframe(app.nome, app.link);
+            };
         } else {
             card.onclick = (e) => {
                 e.preventDefault();
@@ -202,9 +208,7 @@ function renderApps(apps) {
             };
         }
 
-        // Determina icona, default: fa-folder
         const iconClass = app.icona ? app.icona : 'fa-folder';
-        // Determina colore, default azzurro
         const iconColor = app.colore ? app.colore : 'var(--primary-color)';
 
         card.innerHTML = `
@@ -236,6 +240,20 @@ function renderApps(apps) {
         appsContainer.appendChild(adminCard);
     }
 }
+
+// Logica Apertura App in iFrame
+function openAppInIframe(nome, url) {
+    document.body.style.overflow = 'hidden'; // Blocca scroll corpo
+    iframeTitle.textContent = nome;
+    appIframe.src = url;
+    iframeScreen.classList.remove('hidden');
+}
+
+btnCloseIframe.addEventListener('click', () => {
+    document.body.style.overflow = '';
+    iframeScreen.classList.add('hidden');
+    appIframe.src = ''; // Svuota per fermare processi in background
+});
 
 // ================= ADMIN DASHBOARD LOGIC =================
 
