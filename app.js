@@ -16,8 +16,19 @@ const userGreeting = document.getElementById('user-greeting');
 const appsContainer = document.getElementById('apps-container');
 const loadingApps = document.getElementById('loading-apps');
 
+// Elementi Admin
+const adminScreen = document.getElementById('admin-screen');
+const btnAdminBack = document.getElementById('btn-admin-back');
+const btnAdminSave = document.getElementById('btn-admin-save');
+const adminLoading = document.getElementById('admin-loading');
+const adminContent = document.getElementById('admin-content');
+const tableUtentiBody = document.querySelector('#table-utenti tbody');
+const tablePermessiHeader = document.getElementById('permessi-header');
+const tablePermessiBody = document.getElementById('permessi-body');
+
 // State
 let currentUser = null;
+let adminData = null; // { utenti, profili, apps, permessi }
 
 // Registrazione Service Worker per PWA
 if ('serviceWorker' in navigator) {
@@ -152,13 +163,13 @@ function renderApps(apps) {
     apps.forEach(app => {
         const card = document.createElement('a');
         card.className = 'app-card ' + (app.isAllowed ? '' : 'disabled');
-        
+
         // Se permesso, aggiungi href target. Altrimenti apri alert null.
         if (app.isAllowed) {
             // Per aprire nella stessa PWA (come finestra) usa target="_self" o "_blank"
             // Se si vuole che la web app sostituisca la schermata, usa "_self"
             card.href = app.link;
-            card.target = "_self"; 
+            card.target = "_self";
         } else {
             card.onclick = (e) => {
                 e.preventDefault();
@@ -186,9 +197,11 @@ function renderApps(apps) {
     if (currentUser.isAdmin === true || currentUser.isAdmin === 'TRUE' || currentUser.isAdmin === 'Vero') {
         const adminCard = document.createElement('a');
         adminCard.className = 'app-card';
-        // Admin clicca e va allo spreadsheet per gestire i dati
-        adminCard.href = 'https://docs.google.com/spreadsheets/d/1bIPwd5a99ed_hhOjXeCwpzm2WnBMCe7uJ0oYEwijMn8/edit';
-        adminCard.target = "_blank";
+        adminCard.href = '#';
+        adminCard.onclick = (e) => {
+            e.preventDefault();
+            showAdminScreen();
+        };
         adminCard.innerHTML = `
             <div class="app-icon" style="background-color: #10b981;">
                 <i class="fa-solid fa-user-shield"></i>
@@ -198,6 +211,168 @@ function renderApps(apps) {
         appsContainer.appendChild(adminCard);
     }
 }
+
+// ================= ADMIN DASHBOARD LOGIC =================
+
+function showAdminScreen() {
+    homeScreen.classList.add('hidden');
+    adminScreen.classList.remove('hidden');
+    loadAdminData();
+}
+
+btnAdminBack.addEventListener('click', () => {
+    adminScreen.classList.add('hidden');
+    homeScreen.classList.remove('hidden');
+    loadApps(); // ricarica le app nel caso i permessi siano cambiati
+});
+
+async function loadAdminData() {
+    adminLoading.classList.remove('hidden');
+    adminContent.classList.add('hidden');
+
+    try {
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'GET_ADMIN_DATA', profile: currentUser.profilo })
+        });
+        const data = await response.json();
+
+        if (data.status === 'success') {
+            adminData = {
+                utenti: data.utenti,
+                profili: data.profili,
+                apps: data.apps,
+                permessi: data.permessi
+            };
+            renderAdminDashboard();
+        } else {
+            alert("Errore Admin: " + data.message);
+            btnAdminBack.click();
+        }
+    } catch (e) {
+        alert("Errore caricamento dati admin.");
+        btnAdminBack.click();
+    } finally {
+        adminLoading.classList.add('hidden');
+        adminContent.classList.remove('hidden');
+    }
+}
+
+function renderAdminDashboard() {
+    // 1. Riempi Tabella Utenti
+    tableUtentiBody.innerHTML = '';
+    adminData.utenti.forEach((u, i) => {
+        const tr = document.createElement('tr');
+
+        // Creazione options per profili
+        let profiliOptions = adminData.profili.map(p =>
+            `<option value="${p.ID_PROFILO}" ${p.ID_PROFILO === u.PROFILO ? 'selected' : ''}>${p.ID_PROFILO}</option>`
+        ).join('');
+
+        let isAttivo = (u.ATTIVO === true || u.ATTIVO === 'TRUE' || u.ATTIVO === 'Vero');
+
+        tr.innerHTML = `
+            <td>${u.ID_UTENTE}</td>
+            <td>${u.NOME} (${u.USERNAME})</td>
+            <td>
+                <select class="admin-select-profilo" data-index="${i}">
+                    ${profiliOptions}
+                </select>
+            </td>
+            <td>
+                <label class="toggle-switch">
+                    <input type="checkbox" class="admin-toggle-attivo" data-index="${i}" ${isAttivo ? 'checked' : ''}>
+                    <span class="slider"></span>
+                </label>
+            </td>
+        `;
+        tableUtentiBody.appendChild(tr);
+    });
+
+    // 2. Riempi Tabella Permessi
+    // IntestazioneColonne = Profilo + [App 1, App 2...]
+    let appsDisponibili = adminData.apps.filter(app => app.ATTIVA === true || app.ATTIVA === 'TRUE' || app.ATTIVA === 'Vero');
+    tablePermessiHeader.innerHTML = '<th>Profilo</th>' + appsDisponibili.map(app => `<th>${app.NOME_APP}</th>`).join('');
+
+    // Righe = Profili
+    tablePermessiBody.innerHTML = '';
+    adminData.profili.forEach(profilo => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td><strong>${profilo.ID_PROFILO}</strong></td>`;
+
+        appsDisponibili.forEach(app => {
+            // Cerca se esiste un record nei permessi correnti
+            let hasPerm = false;
+            let permIndex = adminData.permessi.findIndex(p => p.ID_PROFILO === profilo.ID_PROFILO && p.ID_APP === app.ID_APP);
+
+            if (permIndex > -1) {
+                let pval = adminData.permessi[permIndex].ABILITATO;
+                hasPerm = (pval === true || pval === 'TRUE' || pval === 'Vero' || pval === 'SÌ');
+            } else {
+                // Genera permesso di default falso nella copia locale (per il save)
+                adminData.permessi.push({
+                    ID_PROFILO: profilo.ID_PROFILO,
+                    ID_APP: app.ID_APP,
+                    ABILITATO: false
+                });
+                permIndex = adminData.permessi.length - 1;
+            }
+
+            tr.innerHTML += `
+                <td>
+                    <label class="toggle-switch">
+                        <input type="checkbox" class="admin-toggle-permesso" data-perm-index="${permIndex}" ${hasPerm ? 'checked' : ''}>
+                        <span class="slider"></span>
+                    </label>
+                </td>
+            `;
+        });
+        tablePermessiBody.appendChild(tr);
+    });
+}
+
+btnAdminSave.addEventListener('click', async () => {
+    btnAdminSave.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+    btnAdminSave.disabled = true;
+
+    // Raccogli stato attuale interfaccia per utenti
+    document.querySelectorAll('.admin-select-profilo').forEach(sel => {
+        let idx = sel.getAttribute('data-index');
+        adminData.utenti[idx].PROFILO = sel.value;
+    });
+    document.querySelectorAll('.admin-toggle-attivo').forEach(chk => {
+        let idx = chk.getAttribute('data-index');
+        adminData.utenti[idx].ATTIVO = chk.checked;
+    });
+
+    // Raccogli stato attuale per i permessi
+    document.querySelectorAll('.admin-toggle-permesso').forEach(chk => {
+        let pidx = chk.getAttribute('data-perm-index');
+        adminData.permessi[pidx].ABILITATO = chk.checked;
+    });
+
+    try {
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+                action: 'SAVE_ADMIN_DATA',
+                utenti_aggiornati: adminData.utenti,
+                permessi_aggiornati: adminData.permessi
+            })
+        });
+        const data = await response.json();
+        if (data.status === 'success') {
+            alert('Salvataggio completato con successo!');
+        } else {
+            alert('Errore al salvataggio: ' + data.message);
+        }
+    } catch (e) {
+        alert('Errore di rete al salvataggio.');
+    } finally {
+        btnAdminSave.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Salva';
+        btnAdminSave.disabled = false;
+    }
+});
 
 // Avvia app
 init();

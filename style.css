@@ -27,7 +27,10 @@ body {
 }
 
 /* Utils */
-.hidden { display: none !important; }
+.hidden {
+    display: none !important;
+}
+
 .screen {
     flex: 1;
     display: flex;
@@ -211,6 +214,120 @@ body {
         grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
         gap: 30px;
     }
+}
+
+/* --- ADMIN SCREEN --- */
+.btn-icon {
+    background: none;
+    border: none;
+    font-size: 20px;
+    color: var(--primary-color);
+    cursor: pointer;
+}
+
+.btn-primary-small {
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 8px;
+    font-size: 14px;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.admin-dashboard {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+    width: 100%;
+}
+
+.admin-section {
+    padding: 20px;
+    border-radius: 15px;
+}
+
+.admin-section h3 {
+    margin-bottom: 15px;
+    color: var(--primary-color);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.table-responsive {
+    width: 100%;
+    overflow-x: auto;
+}
+
+.admin-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 500px;
+}
+
+.admin-table th,
+.admin-table td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--card-border);
+}
+
+.admin-table th {
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.admin-table select {
+    padding: 5px;
+    border-radius: 6px;
+    border: 1px solid #cbd5e1;
+}
+
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 44px;
+    height: 24px;
+}
+
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: .4s;
+    border-radius: 34px;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+}
+
+input:checked+.slider {
+    background-color: #10b981;
+}
+
+input:checked+.slider:before {
+    transform: translateX(20px);
 }
 
 .app-card {

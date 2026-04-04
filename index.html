@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="it">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -15,8 +16,9 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
 </head>
+
 <body>
-    
+
     <!-- Schermata di Login -->
     <div id="login-screen" class="screen active">
         <div class="login-card glass">
@@ -25,7 +27,7 @@
                 <h1>Portale Aziendale</h1>
                 <p>Accedi per continuare</p>
             </div>
-            
+
             <form id="login-form">
                 <div class="input-group">
                     <i class="fa-solid fa-user"></i>
@@ -70,6 +72,71 @@
         </main>
     </div>
 
+    <!-- Schermata Admin -->
+    <div id="admin-screen" class="screen hidden">
+        <header class="app-header glass">
+            <div class="header-content">
+                <div class="header-left">
+                    <button id="btn-admin-back" class="btn-icon"><i class="fa-solid fa-arrow-left"></i></button>
+                    <h2>Area Admin</h2>
+                </div>
+                <div class="header-right">
+                    <button id="btn-admin-save" class="btn-primary-small">
+                        <i class="fa-solid fa-floppy-disk"></i> Salva
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <div id="admin-loading" class="loading-state hidden">
+                <i class="fa-solid fa-circle-notch fa-spin fa-3x"></i>
+                <p>Caricamento dati sistema...</p>
+            </div>
+
+            <div id="admin-content" class="admin-dashboard hidden">
+                <!-- Sezione Utenti -->
+                <div class="admin-section glass">
+                    <h3><i class="fa-solid fa-users"></i> Gestione Utenti</h3>
+                    <div class="table-responsive">
+                        <table class="admin-table" id="table-utenti">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Nome</th>
+                                    <th>Profilo</th>
+                                    <th>Attivo</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Dinamico -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Sezione Permessi -->
+                <div class="admin-section glass">
+                    <h3><i class="fa-solid fa-key"></i> Permessi Profili</h3>
+                    <div class="table-responsive">
+                        <table class="admin-table" id="table-permessi">
+                            <thead>
+                                <tr id="permessi-header">
+                                    <th>Profilo</th>
+                                    <!-- Dinamico colonne APP -->
+                                </tr>
+                            </thead>
+                            <tbody id="permessi-body">
+                                <!-- Dinamico -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
     <script src="app.js"></script>
 </body>
+
 </html>
