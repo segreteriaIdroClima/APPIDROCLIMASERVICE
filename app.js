@@ -20,9 +20,12 @@ const loadingApps = document.getElementById('loading-apps');
 const adminScreen = document.getElementById('admin-screen');
 const btnAdminBack = document.getElementById('btn-admin-back');
 const btnAdminSave = document.getElementById('btn-admin-save');
+const btnAddUser = document.getElementById('btn-add-user');
+const btnAddApp = document.getElementById('btn-add-app');
 const adminLoading = document.getElementById('admin-loading');
 const adminContent = document.getElementById('admin-content');
 const tableUtentiBody = document.querySelector('#table-utenti tbody');
+const tableAppsBody = document.querySelector('#table-apps tbody');
 const tablePermessiHeader = document.getElementById('permessi-header');
 const tablePermessiBody = document.getElementById('permessi-body');
 
@@ -259,12 +262,16 @@ async function loadAdminData() {
 }
 
 function renderAdminDashboard() {
-    // 1. Riempi Tabella Utenti
+    renderUtenti();
+    renderAppsAdmin();
+    renderPermessi();
+}
+
+function renderUtenti() {
     tableUtentiBody.innerHTML = '';
     adminData.utenti.forEach((u, i) => {
         const tr = document.createElement('tr');
 
-        // Creazione options per profili
         let profiliOptions = adminData.profili.map(p =>
             `<option value="${p.ID_PROFILO}" ${p.ID_PROFILO === u.PROFILO ? 'selected' : ''}>${p.ID_PROFILO}</option>`
         ).join('');
@@ -272,36 +279,131 @@ function renderAdminDashboard() {
         let isAttivo = (u.ATTIVO === true || u.ATTIVO === 'TRUE' || u.ATTIVO === 'Vero');
 
         tr.innerHTML = `
-            <td>${u.ID_UTENTE}</td>
-            <td>${u.NOME} (${u.USERNAME})</td>
+            <td><input type="text" value="${u.ID_UTENTE}" data-idx="${i}" data-field="ID_UTENTE" class="u-input" style="width:70px"></td>
+            <td><input type="text" value="${u.NOME}" data-idx="${i}" data-field="NOME" class="u-input"></td>
+            <td><input type="text" value="${u.USERNAME}" data-idx="${i}" data-field="USERNAME" class="u-input" style="width:100px"></td>
+            <td><input type="text" value="${u.PASSWORD_HASH}" data-idx="${i}" data-field="PASSWORD_HASH" class="u-input" style="width:100px"></td>
             <td>
-                <select class="admin-select-profilo" data-index="${i}">
+                <select data-idx="${i}" data-field="PROFILO" class="u-input">
                     ${profiliOptions}
                 </select>
             </td>
             <td>
                 <label class="toggle-switch">
-                    <input type="checkbox" class="admin-toggle-attivo" data-index="${i}" ${isAttivo ? 'checked' : ''}>
+                    <input type="checkbox" data-idx="${i}" data-field="ATTIVO" class="u-toggle" ${isAttivo ? 'checked' : ''}>
                     <span class="slider"></span>
                 </label>
+            </td>
+            <td>
+                <button class="btn-danger-small" onclick="removeUtente(${i})"><i class="fa-solid fa-trash"></i></button>
             </td>
         `;
         tableUtentiBody.appendChild(tr);
     });
 
-    // 2. Riempi Tabella Permessi
-    // IntestazioneColonne = Profilo + [App 1, App 2...]
+    // Aggiungi event listeners
+    document.querySelectorAll('.u-input').forEach(el => el.addEventListener('change', updateUtenteData));
+    document.querySelectorAll('.u-toggle').forEach(el => el.addEventListener('change', updateUtenteData));
+}
+
+function renderAppsAdmin() {
+    tableAppsBody.innerHTML = '';
+    adminData.apps.forEach((a, i) => {
+        const tr = document.createElement('tr');
+        let isAttiva = (a.ATTIVA === true || a.ATTIVA === 'TRUE' || a.ATTIVA === 'Vero');
+        let isVis = (a.VISIBILE_HOME === true || a.VISIBILE_HOME === 'TRUE' || a.VISIBILE_HOME === 'Vero');
+
+        tr.innerHTML = `
+            <td><input type="text" value="${a.ID_APP}" data-idx="${i}" data-field="ID_APP" class="a-input" style="width:80px"></td>
+            <td><input type="text" value="${a.NOME_APP}" data-idx="${i}" data-field="NOME_APP" class="a-input"></td>
+            <td><input type="text" value="${a.LINK_DEPLOYMENT}" data-idx="${i}" data-field="LINK_DEPLOYMENT" class="a-input" style="width:150px"></td>
+            <td><input type="text" value="${a.ICONA}" data-idx="${i}" data-field="ICONA" class="a-input" style="width:100px"></td>
+            <td>
+                <label class="toggle-switch">
+                    <input type="checkbox" data-idx="${i}" data-field="ATTIVA" class="a-toggle" ${isAttiva ? 'checked' : ''}>
+                    <span class="slider"></span>
+                </label>
+            </td>
+            <td>
+                <label class="toggle-switch">
+                    <input type="checkbox" data-idx="${i}" data-field="VISIBILE_HOME" class="a-toggle" ${isVis ? 'checked' : ''}>
+                    <span class="slider"></span>
+                </label>
+            </td>
+            <td>
+                <button class="btn-danger-small" onclick="removeApp(${i})"><i class="fa-solid fa-trash"></i></button>
+            </td>
+        `;
+        tableAppsBody.appendChild(tr);
+    });
+
+    document.querySelectorAll('.a-input').forEach(el => el.addEventListener('change', updateAppData));
+    document.querySelectorAll('.a-toggle').forEach(el => el.addEventListener('change', updateAppData));
+}
+
+function updateUtenteData(e) {
+    let idx = e.target.getAttribute('data-idx');
+    let field = e.target.getAttribute('data-field');
+    adminData.utenti[idx][field] = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+}
+
+function updateAppData(e) {
+    let idx = e.target.getAttribute('data-idx');
+    let field = e.target.getAttribute('data-field');
+    adminData.apps[idx][field] = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+
+    // Se cambia un ID APP dobbiamo re-renderizzare i permessi (o se si disattiva/attiva, cambiano le colonne)
+    if (field === 'ID_APP' || field === 'ATTIVA' || field === 'VISIBILE_HOME') {
+        renderPermessi();
+    }
+}
+
+window.removeUtente = function (idx) {
+    if (confirm("Sei sicuro di eliminare questo utente?")) {
+        adminData.utenti.splice(idx, 1);
+        renderUtenti();
+    }
+};
+
+window.removeApp = function (idx) {
+    if (confirm("Sei sicuro di eliminare questa App? Verranno rimossi anche i relativi permessi.")) {
+        let appRemoved = adminData.apps[idx];
+        // Rimuovi anche i permessi orfani
+        adminData.permessi = adminData.permessi.filter(p => p.ID_APP !== appRemoved.ID_APP);
+        adminData.apps.splice(idx, 1);
+        renderAppsAdmin();
+        renderPermessi();
+    }
+};
+
+btnAddUser.addEventListener('click', () => {
+    let newId = 'U' + String(adminData.utenti.length + 1).padStart(3, '0');
+    adminData.utenti.push({
+        ID_UTENTE: newId, NOME: 'Nuovo Utente', USERNAME: 'nuovouser', PASSWORD_HASH: 'pass123',
+        PROFILO: 'UFFICIO', ATTIVO: true, IS_ADMIN: false, NOTE: ''
+    });
+    renderUtenti();
+});
+
+btnAddApp.addEventListener('click', () => {
+    adminData.apps.push({
+        ID_APP: 'NUOVA_APP', NOME_APP: 'Nuova App', LINK_DEPLOYMENT: 'https://',
+        DESCRIZIONE: '', ICONA: 'fa-globe', ORDINE: 99, ATTIVA: true, VISIBILE_HOME: true, COLORE_BADGE: '#10b981', NOTE: ''
+    });
+    renderAppsAdmin();
+    renderPermessi();
+});
+
+function renderPermessi() {
     let appsDisponibili = adminData.apps.filter(app => app.ATTIVA === true || app.ATTIVA === 'TRUE' || app.ATTIVA === 'Vero');
     tablePermessiHeader.innerHTML = '<th>Profilo</th>' + appsDisponibili.map(app => `<th>${app.NOME_APP}</th>`).join('');
 
-    // Righe = Profili
     tablePermessiBody.innerHTML = '';
     adminData.profili.forEach(profilo => {
         const tr = document.createElement('tr');
         tr.innerHTML = `<td><strong>${profilo.ID_PROFILO}</strong></td>`;
 
         appsDisponibili.forEach(app => {
-            // Cerca se esiste un record nei permessi correnti
             let hasPerm = false;
             let permIndex = adminData.permessi.findIndex(p => p.ID_PROFILO === profilo.ID_PROFILO && p.ID_APP === app.ID_APP);
 
@@ -309,7 +411,6 @@ function renderAdminDashboard() {
                 let pval = adminData.permessi[permIndex].ABILITATO;
                 hasPerm = (pval === true || pval === 'TRUE' || pval === 'Vero' || pval === 'SÌ');
             } else {
-                // Genera permesso di default falso nella copia locale (per il save)
                 adminData.permessi.push({
                     ID_PROFILO: profilo.ID_PROFILO,
                     ID_APP: app.ID_APP,
@@ -321,7 +422,7 @@ function renderAdminDashboard() {
             tr.innerHTML += `
                 <td>
                     <label class="toggle-switch">
-                        <input type="checkbox" class="admin-toggle-permesso" data-perm-index="${permIndex}" ${hasPerm ? 'checked' : ''}>
+                        <input type="checkbox" onchange="updatePermesso(${permIndex}, this)" ${hasPerm ? 'checked' : ''}>
                         <span class="slider"></span>
                     </label>
                 </td>
@@ -331,25 +432,13 @@ function renderAdminDashboard() {
     });
 }
 
+window.updatePermesso = function (idx, el) {
+    adminData.permessi[idx].ABILITATO = el.checked;
+};
+
 btnAdminSave.addEventListener('click', async () => {
     btnAdminSave.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
     btnAdminSave.disabled = true;
-
-    // Raccogli stato attuale interfaccia per utenti
-    document.querySelectorAll('.admin-select-profilo').forEach(sel => {
-        let idx = sel.getAttribute('data-index');
-        adminData.utenti[idx].PROFILO = sel.value;
-    });
-    document.querySelectorAll('.admin-toggle-attivo').forEach(chk => {
-        let idx = chk.getAttribute('data-index');
-        adminData.utenti[idx].ATTIVO = chk.checked;
-    });
-
-    // Raccogli stato attuale per i permessi
-    document.querySelectorAll('.admin-toggle-permesso').forEach(chk => {
-        let pidx = chk.getAttribute('data-perm-index');
-        adminData.permessi[pidx].ABILITATO = chk.checked;
-    });
 
     try {
         const response = await fetch(API_URL, {
@@ -357,6 +446,7 @@ btnAdminSave.addEventListener('click', async () => {
             body: JSON.stringify({
                 action: 'SAVE_ADMIN_DATA',
                 utenti_aggiornati: adminData.utenti,
+                apps_aggiornate: adminData.apps,
                 permessi_aggiornati: adminData.permessi
             })
         });

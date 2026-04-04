@@ -7,8 +7,8 @@
     <title>Portale Aziendale</title>
     <!-- Configurazione PWA -->
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#2563EB">
-    <link rel="apple-touch-icon" href="icon-192x192.png">
+    <meta name="theme-color" content="#0f172a">
+    <link rel="apple-touch-icon" href="idroclima-app-192.png">
 
     <!-- CSS e Font -->
     <link rel="stylesheet" href="style.css">
@@ -23,7 +23,7 @@
     <div id="login-screen" class="screen active">
         <div class="login-card glass">
             <div class="logo-container">
-                <i class="fa-solid fa-briefcase fa-3x brand-icon"></i>
+                <img src="idroclima-app-192.png" alt="Logo Idroclima" class="brand-icon">
                 <h1>Portale Aziendale</h1>
                 <p>Accedi per continuare</p>
             </div>
@@ -51,7 +51,7 @@
         <header class="app-header glass">
             <div class="header-content">
                 <div class="header-left">
-                    <i class="fa-solid fa-briefcase"></i>
+                    <img src="idroclima-drop-48.png" alt="Logo" class="header-logo">
                     <h2>Portale</h2>
                 </div>
                 <div class="header-right">
@@ -97,15 +97,49 @@
             <div id="admin-content" class="admin-dashboard hidden">
                 <!-- Sezione Utenti -->
                 <div class="admin-section glass">
-                    <h3><i class="fa-solid fa-users"></i> Gestione Utenti</h3>
+                    <div class="admin-section-header">
+                        <h3><i class="fa-solid fa-users"></i> Gestione Utenti</h3>
+                        <button id="btn-add-user" class="btn-secondary-small"><i class="fa-solid fa-plus"></i> Nuovo
+                            Utente</button>
+                    </div>
                     <div class="table-responsive">
                         <table class="admin-table" id="table-utenti">
                             <thead>
                                 <tr>
                                     <th>ID</th>
                                     <th>Nome</th>
+                                    <th>Username</th>
+                                    <th>Pass/Hash</th>
                                     <th>Profilo</th>
                                     <th>Attivo</th>
+                                    <th>Rimuovi</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Dinamico -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Sezione Web Apps -->
+                <div class="admin-section glass">
+                    <div class="admin-section-header">
+                        <h3><i class="fa-solid fa-cubes"></i> Gestione Web App</h3>
+                        <button id="btn-add-app" class="btn-secondary-small"><i class="fa-solid fa-plus"></i> Nuova
+                            App</button>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="admin-table" id="table-apps">
+                            <thead>
+                                <tr>
+                                    <th>ID App</th>
+                                    <th>Nome Visualizzato</th>
+                                    <th>Link Deployment</th>
+                                    <th>Icona (FA)</th>
+                                    <th>Attiva</th>
+                                    <th>Vis. Home</th>
+                                    <th>Rimuovi</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -117,7 +151,9 @@
 
                 <!-- Sezione Permessi -->
                 <div class="admin-section glass">
-                    <h3><i class="fa-solid fa-key"></i> Permessi Profili</h3>
+                    <div class="admin-section-header">
+                        <h3><i class="fa-solid fa-key"></i> Permessi Profili</h3>
+                    </div>
                     <div class="table-responsive">
                         <table class="admin-table" id="table-permessi">
                             <thead>
