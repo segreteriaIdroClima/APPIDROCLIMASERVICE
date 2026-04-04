@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Portale Aziendale</title>
+    <!-- Configurazione PWA -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2563EB">
+    <link rel="apple-touch-icon" href="icon-192x192.png">
+
+    <!-- CSS e Font -->
+    <link rel="stylesheet" href="style.css">
+    <!-- Font Awesome per le icone (opzionale, caricato tramite CDN per semplicità) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    
+    <!-- Schermata di Login -->
+    <div id="login-screen" class="screen active">
+        <div class="login-card glass">
+            <div class="logo-container">
+                <i class="fa-solid fa-briefcase fa-3x brand-icon"></i>
+                <h1>Portale Aziendale</h1>
+                <p>Accedi per continuare</p>
+            </div>
+            
+            <form id="login-form">
+                <div class="input-group">
+                    <i class="fa-solid fa-user"></i>
+                    <input type="text" id="username" placeholder="Username" required>
+                </div>
+                <div class="input-group">
+                    <i class="fa-solid fa-lock"></i>
+                    <input type="password" id="password" placeholder="Password" required>
+                </div>
+                <button type="submit" id="btn-login" class="btn-primary">
+                    <span id="login-text">Accedi</span>
+                    <i id="login-spinner" class="fa-solid fa-spinner fa-spin hidden"></i>
+                </button>
+            </form>
+            <div id="login-error" class="error-msg hidden">Credenziali errate</div>
+        </div>
+    </div>
+
+    <!-- Schermata Home / Grid App -->
+    <div id="home-screen" class="screen hidden">
+        <header class="app-header glass">
+            <div class="header-content">
+                <div class="header-left">
+                    <i class="fa-solid fa-briefcase"></i>
+                    <h2>Portale</h2>
+                </div>
+                <div class="header-right">
+                    <span id="user-greeting">Ciao Utente</span>
+                    <button id="btn-logout"><i class="fa-solid fa-right-from-bracket"></i></button>
+                </div>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <div id="apps-container" class="apps-grid">
+                <!-- Le app verranno iniettate qui dal JS -->
+            </div>
+            <div id="loading-apps" class="loading-state hidden">
+                <i class="fa-solid fa-circle-notch fa-spin fa-3x"></i>
+                <p>Caricamento applicazioni...</p>
+            </div>
+        </main>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
