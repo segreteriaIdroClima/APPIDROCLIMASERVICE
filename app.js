@@ -29,10 +29,12 @@ const btnAdminBack = document.getElementById('btn-admin-back');
 const btnAdminSave = document.getElementById('btn-admin-save');
 const btnAddUser = document.getElementById('btn-add-user');
 const btnAddApp = document.getElementById('btn-add-app');
+const btnAddGroup = document.getElementById('btn-add-group');
 const adminLoading = document.getElementById('admin-loading');
 const adminContent = document.getElementById('admin-content');
 const tableUtentiBody = document.querySelector('#table-utenti tbody');
 const tableAppsBody = document.querySelector('#table-apps tbody');
+const tableGruppiBody = document.getElementById('gruppi-body');
 const tablePermessiHeader = document.getElementById('permessi-header');
 const tablePermessiBody = document.getElementById('permessi-body');
 
@@ -166,7 +168,7 @@ async function loadApps() {
             method: 'POST',
             body: JSON.stringify({
                 action: 'GET_USER_DATA',
-                profile: currentUser.profilo
+                userId: currentUser.id || currentUser.ID_UTENTE
             })
         });
 
@@ -211,9 +213,16 @@ function renderApps(apps) {
         const iconClass = app.icona ? app.icona : 'fa-folder';
         const iconColor = app.colore ? app.colore : 'var(--primary-color)';
 
+        let iconContent = '';
+        if (iconClass.toLowerCase().includes('http') || iconClass.toLowerCase().includes('.png') || iconClass.toLowerCase().includes('.jpg')) {
+             iconContent = `<img src="${iconClass}" style="width: 60%; height: 60%; object-fit: contain; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));" alt="icon">`;
+        } else {
+             iconContent = `<i class="${iconClass.includes('fa-') ? 'fa-solid ' + iconClass : 'fa-solid fa-folder'}"></i>`;
+        }
+
         card.innerHTML = `
             <div class="app-icon" style="background-color: ${iconColor};">
-                <i class="${iconClass.includes('fa-') ? 'fa-solid ' + iconClass : 'fa-solid fa-folder'}"></i>
+                ${iconContent}
             </div>
             <div class="app-title">${app.nome}</div>
             ${!app.isAllowed ? '<div class="app-badge"><i class="fa-solid fa-lock"></i></div>' : ''}
@@ -304,6 +313,7 @@ async function loadAdminData() {
 function renderAdminDashboard() {
     renderUtenti();
     renderAppsAdmin();
+    renderGruppi();
     renderPermessi();
 }
 
@@ -381,6 +391,51 @@ function renderAppsAdmin() {
     document.querySelectorAll('.a-toggle').forEach(el => el.addEventListener('change', updateAppData));
 }
 
+function renderGruppi() {
+    if (!tableGruppiBody) return;
+    tableGruppiBody.innerHTML = '';
+    adminData.profili.forEach((g, i) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td><input type="text" value="${g.ID_PROFILO || ''}" data-idx="${i}" data-field="ID_PROFILO" class="g-input" style="width:100px"></td>
+            <td><input type="text" value="${g.DESCRIZIONE || ''}" data-idx="${i}" data-field="DESCRIZIONE" class="g-input"></td>
+            <td>
+                <button class="btn-danger-small" onclick="removeGruppo(${i})"><i class="fa-solid fa-trash"></i></button>
+            </td>
+        `;
+        tableGruppiBody.appendChild(tr);
+    });
+
+    document.querySelectorAll('.g-input').forEach(el => el.addEventListener('change', updateGruppoData));
+}
+
+function updateGruppoData(e) {
+    let idx = e.target.getAttribute('data-idx');
+    let field = e.target.getAttribute('data-field');
+    adminData.profili[idx][field] = e.target.value;
+    
+    // Se modifichiamo ID di un gruppo, aggiorniamo i selettori degli utenti
+    if(field === 'ID_PROFILO') renderUtenti();
+}
+
+window.removeGruppo = function (idx) {
+    if (confirm("Sei sicuro di eliminare questo gruppo?")) {
+        adminData.profili.splice(idx, 1);
+        renderGruppi();
+        renderUtenti(); // aggiorna select
+    }
+};
+
+if(btnAddGroup) {
+    btnAddGroup.addEventListener('click', () => {
+        adminData.profili.push({
+            ID_PROFILO: 'NUOVO_GRUPPO', DESCRIZIONE: 'Descrizione'
+        });
+        renderGruppi();
+        renderUtenti();
+    });
+}
+
 function updateUtenteData(e) {
     let idx = e.target.getAttribute('data-idx');
     let field = e.target.getAttribute('data-field');
@@ -399,9 +454,12 @@ function updateAppData(e) {
 }
 
 window.removeUtente = function (idx) {
-    if (confirm("Sei sicuro di eliminare questo utente?")) {
+    if (confirm("Sei sicuro di eliminare questo utente? Verranno rimossi anche i suoi permessi specifici.")) {
+        let utenteRemoved = adminData.utenti[idx];
+        adminData.permessi = adminData.permessi.filter(p => p.ID_UTENTE !== utenteRemoved.ID_UTENTE);
         adminData.utenti.splice(idx, 1);
         renderUtenti();
+        renderPermessi();
     }
 };
 
@@ -436,23 +494,24 @@ btnAddApp.addEventListener('click', () => {
 
 function renderPermessi() {
     let appsDisponibili = adminData.apps.filter(app => app.ATTIVA === true || app.ATTIVA === 'TRUE' || app.ATTIVA === 'Vero');
-    tablePermessiHeader.innerHTML = '<th>Profilo</th>' + appsDisponibili.map(app => `<th>${app.NOME_APP}</th>`).join('');
+    tablePermessiHeader.innerHTML = '<th>Utente</th>' + appsDisponibili.map(app => `<th>${app.NOME_APP}</th>`).join('');
 
     tablePermessiBody.innerHTML = '';
-    adminData.profili.forEach(profilo => {
+    adminData.utenti.forEach(utente => {
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td><strong>${profilo.ID_PROFILO}</strong></td>`;
+        tr.innerHTML = `<td><strong>${utente.NOME} (${utente.ID_UTENTE})</strong></td>`;
 
         appsDisponibili.forEach(app => {
             let hasPerm = false;
-            let permIndex = adminData.permessi.findIndex(p => p.ID_PROFILO === profilo.ID_PROFILO && p.ID_APP === app.ID_APP);
+            // CONTROLLO SU ID_UTENTE INVECE DI ID_PROFILO
+            let permIndex = adminData.permessi.findIndex(p => p.ID_UTENTE === utente.ID_UTENTE && p.ID_APP === app.ID_APP);
 
             if (permIndex > -1) {
                 let pval = adminData.permessi[permIndex].ABILITATO;
                 hasPerm = (pval === true || pval === 'TRUE' || pval === 'Vero' || pval === 'SÌ');
             } else {
                 adminData.permessi.push({
-                    ID_PROFILO: profilo.ID_PROFILO,
+                    ID_UTENTE: utente.ID_UTENTE,
                     ID_APP: app.ID_APP,
                     ABILITATO: false
                 });
@@ -487,6 +546,7 @@ btnAdminSave.addEventListener('click', async () => {
                 action: 'SAVE_ADMIN_DATA',
                 utenti_aggiornati: adminData.utenti,
                 apps_aggiornate: adminData.apps,
+                profili_aggiornati: adminData.profili,
                 permessi_aggiornati: adminData.permessi
             })
         });

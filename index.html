@@ -143,7 +143,7 @@
                                     <th>ID App</th>
                                     <th>Nome Visualizzato</th>
                                     <th>Link Deployment</th>
-                                    <th>Icona (FA)</th>
+                                    <th>Icona (FA o URL)</th>
                                     <th>Attiva</th>
                                     <th>Vis. Home</th>
                                     <th>Rimuovi</th>
@@ -156,16 +156,38 @@
                     </div>
                 </div>
 
+                <!-- Sezione Gruppi (Profili) -->
+                <div class="admin-section glass">
+                    <div class="admin-section-header">
+                        <h3><i class="fa-solid fa-tags"></i> Gestione Gruppi</h3>
+                        <button id="btn-add-group" class="btn-secondary-small"><i class="fa-solid fa-plus"></i> Nuovo Gruppo</button>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="admin-table" id="table-gruppi">
+                            <thead>
+                                <tr>
+                                    <th>ID Gruppo</th>
+                                    <th>Descrizione</th>
+                                    <th>Rimuovi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="gruppi-body">
+                                <!-- Dinamico -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
                 <!-- Sezione Permessi -->
                 <div class="admin-section glass">
                     <div class="admin-section-header">
-                        <h3><i class="fa-solid fa-key"></i> Permessi Profili</h3>
+                        <h3><i class="fa-solid fa-key"></i> Permessi Utenti</h3>
                     </div>
                     <div class="table-responsive">
                         <table class="admin-table" id="table-permessi">
                             <thead>
                                 <tr id="permessi-header">
-                                    <th>Profilo</th>
+                                    <th>Utente</th>
                                     <!-- Dinamico colonne APP -->
                                 </tr>
                             </thead>
@@ -181,23 +203,27 @@
 
     <!-- Schermata Web App in iFrame -->
     <div id="iframe-screen" class="screen hidden"
-        style="width: 100%; height: 100%; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: #0f172a; z-index: 1000; display: flex; flex-direction: column; margin: 0; padding: 0; overflow: hidden;">
+        style="width: 100%; height: 100%; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15, 23, 42, 0.85); z-index: 1000; display: flex; flex-direction: column; align-items: center; justify-content: center; margin: 0; padding: 0; overflow: hidden; backdrop-filter: blur(8px);">
 
-        <!-- Header per iFrame -->
-        <div
-            style="background: rgba(15, 23, 42, 0.95); padding: 12px 15px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.1); width: 100%; box-sizing: border-box;">
-            <div style="display: flex; align-items: center; gap: 10px; color: white;">
-                <img src="idroclima-drop-48.png" style="height: 24px;">
-                <span id="iframe-title" style="font-weight: 600; font-size: 15px;">App</span>
+        <div id="iframe-container" style="width: 100%; max-width: 480px; height: 100%; display: flex; flex-direction: column; background: #0f172a; box-shadow: 0 0 30px rgba(0,0,0,0.8); position: relative;">
+            <!-- Header per iFrame -->
+            <div
+                style="background: rgba(15, 23, 42, 0.95); padding: 12px 15px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.1); width: 100%; box-sizing: border-box; flex-shrink: 0;">
+                <div style="display: flex; align-items: center; gap: 10px; color: white;">
+                    <img src="idroclima-drop-48.png" style="height: 24px;">
+                    <span id="iframe-title" style="font-weight: 600; font-size: 15px;">App</span>
+                </div>
+                <button id="btn-close-iframe"
+                    style="background: #ef4444; color: white; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.2);">
+                    <i class="fa-solid fa-xmark"></i> Chiudi
+                </button>
             </div>
-            <button id="btn-close-iframe"
-                style="background: #ef4444; color: white; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.2);">
-                <i class="fa-solid fa-xmark"></i> Chiudi
-            </button>
-        </div>
 
-        <iframe id="app-iframe" src=""
-            style="flex: 1; width: 100%; height: 100%; border: 0; outline: 0; margin: 0; padding: 0; display: block; box-sizing: border-box; background: transparent;"></iframe>
+            <div style="flex: 1; width: 100%; position: relative; overflow: hidden; -webkit-overflow-scrolling: touch;">
+                <iframe id="app-iframe" src="" sandbox="allow-scripts allow-same-origin allow-forms allow-downloads"
+                    style="position: absolute; top: 0; left: 0; width: 1px; min-width: 100%; height: 100%; border: 0; outline: 0; margin: 0; padding: 0; display: block; box-sizing: border-box; background: transparent;"></iframe>
+            </div>
+        </div>
     </div>
 
     <script src="app.js"></script>
