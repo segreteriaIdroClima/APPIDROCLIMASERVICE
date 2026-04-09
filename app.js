@@ -213,8 +213,14 @@ function renderApps(apps) {
         const iconClass = app.icona ? app.icona : 'fa-folder';
         const iconColor = app.colore ? app.colore : 'var(--primary-color)';
 
+        let isImage = false;
+        const iconLower = iconClass.toLowerCase();
+        if (iconLower.startsWith('http') || iconLower.startsWith('data:img') || iconLower.startsWith('data:image') || iconLower.includes('.png') || iconLower.includes('.jpg') || iconLower.includes('.jpeg') || iconLower.includes('.svg') || iconLower.includes('.webp')) {
+            isImage = true;
+        }
+
         let iconContent = '';
-        if (iconClass.toLowerCase().includes('http') || iconClass.toLowerCase().includes('.png') || iconClass.toLowerCase().includes('.jpg')) {
+        if (isImage) {
              iconContent = `<img src="${iconClass}" style="width: 60%; height: 60%; object-fit: contain; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));" alt="icon">`;
         } else {
              iconContent = `<i class="${iconClass.includes('fa-') ? 'fa-solid ' + iconClass : 'fa-solid fa-folder'}"></i>`;
