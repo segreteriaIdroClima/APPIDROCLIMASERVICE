@@ -388,6 +388,23 @@ function renderUtenti() {
 }
 
 function renderAppsAdmin() {
+    // Genera la lista delle icone disponibili come menu a tendina/autocompletamento
+    if (!document.getElementById('icone-list')) {
+        const availableIcons = [
+            "CF.png", "CFR.png", "CH.png", "CTR.png", "ICSR.png", "ICSSquare.png", 
+            "IP.png", "IPR.png", "IS.png", "ISR.png", "SC.png", "SCR.png", "SF.png", "SFR.png",
+            "fa-solid fa-list", "fa-solid fa-folder", "fa-solid fa-wrench", "fa-solid fa-user", "fa-solid fa-chart-line"
+        ];
+        const datalist = document.createElement('datalist');
+        datalist.id = 'icone-list';
+        availableIcons.forEach(icon => {
+            const option = document.createElement('option');
+            option.value = icon;
+            datalist.appendChild(option);
+        });
+        document.body.appendChild(datalist);
+    }
+
     tableAppsBody.innerHTML = '';
     adminData.apps.forEach((a, i) => {
         const tr = document.createElement('tr');
@@ -398,7 +415,7 @@ function renderAppsAdmin() {
             <td><input type="text" value="${a.ID_APP}" data-idx="${i}" data-field="ID_APP" class="a-input" style="width:80px"></td>
             <td><input type="text" value="${a.NOME_APP}" data-idx="${i}" data-field="NOME_APP" class="a-input"></td>
             <td><input type="text" value="${a.LINK_DEPLOYMENT}" data-idx="${i}" data-field="LINK_DEPLOYMENT" class="a-input" style="width:150px"></td>
-            <td><input type="text" value="${a.ICONA}" data-idx="${i}" data-field="ICONA" class="a-input" style="width:100px"></td>
+            <td><input type="text" list="icone-list" value="${a.ICONA}" data-idx="${i}" data-field="ICONA" class="a-input" style="width:100px" placeholder="Seleziona icona..."></td>
             <td>
                 <label class="toggle-switch">
                     <input type="checkbox" data-idx="${i}" data-field="ATTIVA" class="a-toggle" ${isAttiva ? 'checked' : ''}>
