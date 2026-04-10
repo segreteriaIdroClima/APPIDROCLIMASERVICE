@@ -362,14 +362,30 @@ function renderTimbrature(data) {
                     </tr>
                 </thead>
                 <tbody>
-                    ${data.giorni.map(g => `
+                    ${data.giorni.map(g => {
+                        let pausaTesto = '';
+                        if (g.stamps.length >= 4) {
+                            let [h1, m1] = g.stamps[1].split(':');
+                            let [h2, m2] = g.stamps[2].split(':');
+                            let d1 = new Date(2000, 0, 1, h1, m1);
+                            let d2 = new Date(2000, 0, 1, h2, m2);
+                            let diffMins = Math.round((d2 - d1) / 60000);
+                            if (diffMins > 0) {
+                                let labelPausa = diffMins === 60 ? '1 ora' : (diffMins + ' min');
+                                pausaTesto = `<br><span style="font-size: 11px; color: #f59e0b; padding-top: 3px; display: inline-block;">☕ Pausa: ${labelPausa}</span>`;
+                            }
+                        }
+
+                        return `
                         <tr>
                             <td><strong>${g.key}</strong></td>
                             <td style="color:${g.stamps.length > 0 ? '#10b981' : 'var(--text-muted)'}; font-family:monospace; font-size:15px;">
                                 ${g.stamps.length > 0 ? g.stamps.join(' - ') : '-'}
+                                ${pausaTesto}
                             </td>
                         </tr>
-                    `).join('')}
+                        `;
+                    }).join('')}
                 </tbody>
             </table>
         </div>
