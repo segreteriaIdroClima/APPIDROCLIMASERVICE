@@ -201,7 +201,11 @@ function renderApps(apps) {
         if (app.isAllowed) {
             card.onclick = (e) => {
                 e.preventDefault();
-                openAppInIframe(app.nome, app.link);
+                if (app.link === 'native://timbrature') {
+                    openTimbratureNative();
+                } else {
+                    openAppInIframe(app.nome, app.link);
+                }
             };
         } else {
             card.onclick = (e) => {
@@ -295,6 +299,87 @@ btnCloseIframe.addEventListener('click', () => {
     appIframe.src = ''; // Svuota per fermare processi in background
 });
 
+// ================= TIMBRATURE NATIVE LOGIC =================
+
+const timbratureScreen = document.getElementById('timbrature-screen');
+const btnCloseTimbrature = document.getElementById('btn-close-timbrature');
+const timbratureLoading = document.getElementById('timbrature-loading');
+const timbratureResult = document.getElementById('timbrature-result');
+
+function openTimbratureNative() {
+    document.body.style.overflow = 'hidden';
+    timbratureScreen.classList.remove('hidden');
+    timbratureLoading.classList.remove('hidden');
+    timbratureResult.classList.add('hidden');
+    timbratureResult.innerHTML = '';
+    
+    fetchMyTimbrature();
+}
+
+if (btnCloseTimbrature) {
+    btnCloseTimbrature.addEventListener('click', () => {
+        document.body.style.overflow = '';
+        timbratureScreen.classList.add('hidden');
+    });
+}
+
+async function fetchMyTimbrature() {
+    try {
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+                action: 'GET_MY_TIMBRATURE',
+                nome: currentUser.nome
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.status === 'success') {
+            renderTimbrature(data);
+        } else {
+            timbratureResult.innerHTML = `<div class="error-msg" style="display:block;">${data.message || 'Errore nel recupero delle timbrature.'}</div>`;
+            timbratureLoading.classList.add('hidden');
+            timbratureResult.classList.remove('hidden');
+        }
+    } catch (error) {
+        timbratureResult.innerHTML = `<div class="error-msg" style="display:block;">Errore di rete. Impossibile connettersi al server.</div>`;
+        timbratureLoading.classList.add('hidden');
+        timbratureResult.classList.remove('hidden');
+    }
+}
+
+function renderTimbrature(data) {
+    const tableHTML = `
+        <h3 style="color:white; margin-bottom: 15px;">Mese: ${data.mese}/${data.anno} - <span style="color:var(--primary-color)">${data.nome}</span></h3>
+        <p style="color:var(--text-muted); font-size:13px; margin-bottom:15px;">*Le doppie timbrature continue (< 15 min) sono tagliate per chiarezza.</p>
+        <div class="table-responsive">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>Giorno</th>
+                        <th>Timbrature Valide</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${data.giorni.map(g => `
+                        <tr>
+                            <td><strong>${g.key}</strong></td>
+                            <td style="color:${g.stamps.length > 0 ? '#10b981' : 'var(--text-muted)'}; font-family:monospace; font-size:15px;">
+                                ${g.stamps.length > 0 ? g.stamps.join(' - ') : '-'}
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>
+    `;
+    
+    timbratureResult.innerHTML = tableHTML;
+    timbratureLoading.classList.add('hidden');
+    timbratureResult.classList.remove('hidden');
+}
+
 // ================= ADMIN DASHBOARD LOGIC =================
 
 function showAdminScreen() {
@@ -325,7 +410,8 @@ async function loadAdminData() {
                 utenti: data.utenti,
                 profili: data.profili,
                 apps: data.apps,
-                permessi: data.permessi
+                permessi: data.permessi,
+                dipendentiDisponibili: data.dipendentiDisponibili || []
             };
             renderAdminDashboard();
         } else {
@@ -349,6 +435,22 @@ function renderAdminDashboard() {
 }
 
 function renderUtenti() {
+    // Genera datalist per nomi dipendenti disponibili
+    if (!document.getElementById('nomi-dipendenti')) {
+        const datalist = document.createElement('datalist');
+        datalist.id = 'nomi-dipendenti';
+        document.body.appendChild(datalist);
+    }
+    const dlNomi = document.getElementById('nomi-dipendenti');
+    dlNomi.innerHTML = '';
+    if (adminData.dipendentiDisponibili) {
+        adminData.dipendentiDisponibili.forEach(nome => {
+            const option = document.createElement('option');
+            option.value = nome;
+            dlNomi.appendChild(option);
+        });
+    }
+
     tableUtentiBody.innerHTML = '';
     adminData.utenti.forEach((u, i) => {
         const tr = document.createElement('tr');
@@ -361,7 +463,7 @@ function renderUtenti() {
 
         tr.innerHTML = `
             <td><input type="text" value="${u.ID_UTENTE}" data-idx="${i}" data-field="ID_UTENTE" class="u-input" style="width:70px"></td>
-            <td><input type="text" value="${u.NOME}" data-idx="${i}" data-field="NOME" class="u-input"></td>
+            <td><input type="text" list="nomi-dipendenti" value="${u.NOME}" data-idx="${i}" data-field="NOME" class="u-input" placeholder="Libero o scegli..."></td>
             <td><input type="text" value="${u.USERNAME}" data-idx="${i}" data-field="USERNAME" class="u-input" style="width:100px"></td>
             <td><input type="text" value="${u.PASSWORD_HASH}" data-idx="${i}" data-field="PASSWORD_HASH" class="u-input" style="width:100px"></td>
             <td>
