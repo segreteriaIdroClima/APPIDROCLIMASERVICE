@@ -219,20 +219,27 @@ function renderApps(apps) {
             isImage = true;
         }
 
-        let iconContent = '';
         if (isImage) {
-             iconContent = `<img src="${iconClass}" style="width: 60%; height: 60%; object-fit: contain; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));" alt="icon">`;
+            let src = iconClass;
+            if (!src.startsWith('http') && !src.startsWith('data:')) {
+                src = `Prismi & Icone/${iconClass}`;
+            }
+             
+            card.innerHTML = `
+                <img src="${src}" style="width: 85px; height: 85px; object-fit: contain; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.5)); margin-bottom: 5px;" alt="${app.nome}">
+                <div class="app-title">${app.nome}</div>
+                ${!app.isAllowed ? '<div class="app-badge"><i class="fa-solid fa-lock"></i></div>' : ''}
+            `;
         } else {
-             iconContent = `<i class="${iconClass.includes('fa-') ? 'fa-solid ' + iconClass : 'fa-solid fa-folder'}"></i>`;
+            let iconContent = `<i class="${iconClass.includes('fa-') ? 'fa-solid ' + iconClass : 'fa-solid fa-folder'}"></i>`;
+            card.innerHTML = `
+                <div class="app-icon" style="background-color: ${iconColor};">
+                    ${iconContent}
+                </div>
+                <div class="app-title">${app.nome}</div>
+                ${!app.isAllowed ? '<div class="app-badge"><i class="fa-solid fa-lock"></i></div>' : ''}
+            `;
         }
-
-        card.innerHTML = `
-            <div class="app-icon" style="background-color: ${iconColor};">
-                ${iconContent}
-            </div>
-            <div class="app-title">${app.nome}</div>
-            ${!app.isAllowed ? '<div class="app-badge"><i class="fa-solid fa-lock"></i></div>' : ''}
-        `;
 
         appsContainer.appendChild(card);
     });
@@ -262,6 +269,24 @@ function openAppInIframe(nome, url) {
     iframeTitle.textContent = nome;
     appIframe.src = url;
     iframeScreen.classList.remove('hidden');
+
+    const wrapper = appIframe.parentElement;
+    if (nome.toLowerCase().includes('tecnico')) {
+        // Fix specifico per web app tecnico: abilita scroll morbido, forza limiti esatti
+        wrapper.style.overflowY = 'auto';
+        wrapper.style.overflowX = 'hidden';
+        appIframe.style.width = '100%';
+        appIframe.style.minWidth = '0';
+        appIframe.style.maxWidth = '100%';
+        appIframe.setAttribute('scrolling', 'yes');
+    } else {
+        // Comportamento standard per le altre app
+        wrapper.style.overflow = 'hidden';
+        appIframe.style.width = '1px';
+        appIframe.style.minWidth = '100%';
+        appIframe.style.maxWidth = '';
+        appIframe.removeAttribute('scrolling');
+    }
 }
 
 btnCloseIframe.addEventListener('click', () => {
