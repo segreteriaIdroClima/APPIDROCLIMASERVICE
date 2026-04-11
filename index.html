@@ -246,9 +246,100 @@
                 <i class="fa-solid fa-circle-notch fa-spin fa-3x"></i>
                 <p>Estrazione e pulizia timbrature in corso...</p>
             </div>
-            <div id="timbrature-result" class="hidden">
             </div>
-        </div>
+    </div>
+
+    <!-- Schermata Monitoraggio Risorse -->
+    <div id="monitor-screen" class="screen hidden"
+        style="width: 100%; height: 100%; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: #0f172a; z-index: 1002; display: flex; flex-direction: column; overflow: hidden;">
+        
+        <header class="app-header glass">
+            <div class="header-content">
+                <div class="header-left">
+                    <button id="btn-monitor-back" class="btn-icon"><i class="fa-solid fa-arrow-left"></i></button>
+                    <h2>Monitoraggio Risorse</h2>
+                </div>
+                <div class="header-right" style="font-size: 11px; color: var(--text-muted); text-align: right;">
+                    Ultimo Aggiornamento:<br><span id="monitor-last-updated">-</span>
+                </div>
+            </div>
+        </header>
+
+        <main class="main-content" style="max-width: 100%; padding: 15px;">
+            <div id="monitor-loading" class="loading-state hidden">
+                <i class="fa-solid fa-circle-notch fa-spin fa-3x"></i>
+                <p>Scansione ecosistema Apps Script...</p>
+            </div>
+
+            <div id="monitor-content" class="hidden">
+                <!-- Dashboard Riassuntiva -->
+                <div class="admin-section glass" style="margin-bottom: 20px;">
+                    <h3><i class="fa-solid fa-gauge-high"></i> Stato Account (Business Starter)</h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 15px;">
+                        <div class="quota-card">
+                            <span class="quota-label">Email Giornaliere (Recipient)</span>
+                            <div class="quota-progress-bg">
+                                <div id="quota-email-bar" class="quota-progress-fill" style="width: 0%"></div>
+                            </div>
+                            <span id="quota-email-text" class="quota-value">0 / 1500</span>
+                        </div>
+                        <div class="quota-card">
+                            <span class="quota-label">Salute Generale (Error Rate)</span>
+                            <div class="quota-progress-bg">
+                                <div id="quota-health-bar" class="quota-progress-fill" style="width: 0%"></div>
+                            </div>
+                            <span id="quota-health-text" class="quota-value">100% Ok</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Reference Limiti -->
+                <div class="admin-section glass" style="margin-bottom: 20px; font-size: 13px;">
+                    <h3 id="toggle-limits" style="cursor: pointer;"><i class="fa-solid fa-circle-info"></i> Limiti Tecnici Workspace <i class="fa-solid fa-chevron-down" style="font-size: 12px; margin-left: auto;"></i></h3>
+                    <div id="limits-details" class="hidden" style="margin-top: 10px;">
+                        <table class="admin-table">
+                            <tr style="background: transparent;">
+                                <td>Max Execution Runtime</td>
+                                <td><strong>6 Ore / giorno</strong> (Totale Account)</td>
+                            </tr>
+                            <tr style="background: transparent;">
+                                <td>Max Singola Esecuzione</td>
+                                <td><strong>6 Minuti</strong> (Limite SCRIPT_TIMEOUT)</td>
+                            </tr>
+                            <tr style="background: transparent;">
+                                <td>UrlFetch Chiamate</td>
+                                <td><strong>100.000 / giorno</strong></td>
+                            </tr>
+                            <tr style="background: transparent;">
+                                <td>Trigger Temporali</td>
+                                <td><strong>20 per singolo script</strong></td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Tabella App -->
+                <div class="admin-section glass">
+                    <h3><i class="fa-solid fa-list-check"></i> Elenco Moduli e Script</h3>
+                    <div class="table-responsive" style="margin-top: 15px;">
+                        <table class="admin-table" id="table-monitor">
+                            <thead>
+                                <tr>
+                                    <th>Script Name</th>
+                                    <th>Esecuzioni (7g)</th>
+                                    <th>Error Rate</th>
+                                    <th>Posizione Drive</th>
+                                    <th>Azioni</th>
+                                </tr>
+                            </thead>
+                            <tbody id="monitor-body">
+                                <!-- Dinamico -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
     </div>
 
     <!-- Overlay per Animazione di Transizione -->

@@ -40,6 +40,16 @@ const tablePermessiBody = document.getElementById('permessi-body');
 const transitionOverlay = document.getElementById('transition-overlay');
 const transitionIconContainer = document.getElementById('transition-icon-container');
 
+// Elementi Monitor
+const monitorScreen = document.getElementById('monitor-screen');
+const btnMonitorBack = document.getElementById('btn-monitor-back');
+const monitorLoading = document.getElementById('monitor-loading');
+const monitorContent = document.getElementById('monitor-content');
+const monitorBody = document.getElementById('monitor-body');
+const monitorLastUpdated = document.getElementById('monitor-last-updated');
+const toggleLimits = document.getElementById('toggle-limits');
+const limitsDetails = document.getElementById('limits-details');
+
 // State
 let currentUser = null;
 let adminData = null; // { utenti, profili, apps, permessi }
@@ -522,6 +532,138 @@ function renderAdminDashboard() {
     renderAppsAdmin();
     renderGruppi();
     renderPermessi();
+    
+    // Aggiungi pulsante per monitoraggio in fondo all'admin dashboard
+    if (!document.getElementById('btn-open-monitor')) {
+        const adminDashboard = document.querySelector('.admin-dashboard');
+        const monitorBtnContainer = document.createElement('div');
+        monitorBtnContainer.id = 'btn-open-monitor';
+        monitorBtnContainer.className = 'admin-section glass';
+        monitorBtnContainer.style.textAlign = 'center';
+        monitorBtnContainer.innerHTML = `
+            <button class="btn-primary" style="background:#6366f1; width: auto; padding: 12px 25px;">
+                <i class="fa-solid fa-microchip"></i> Apri Monitoraggio Risorse Account
+            </button>
+        `;
+        monitorBtnContainer.querySelector('button').onclick = openMonitorScreen;
+        adminDashboard.appendChild(monitorBtnContainer);
+    }
+}
+
+// ================= MONITORAGGIO SYSTEM LOGIC =================
+
+function openMonitorScreen() {
+    monitorScreen.classList.remove('hidden');
+    loadMonitorData();
+}
+
+btnMonitorBack.addEventListener('click', () => {
+    monitorScreen.classList.add('hidden');
+});
+
+if (toggleLimits) {
+    toggleLimits.addEventListener('click', () => {
+        limitsDetails.classList.toggle('hidden');
+        const icon = toggleLimits.querySelector('.fa-chevron-down, .fa-chevron-up');
+        if (icon) {
+            icon.classList.toggle('fa-chevron-down');
+            icon.classList.toggle('fa-chevron-up');
+        }
+    });
+}
+
+async function loadMonitorData() {
+    monitorLoading.classList.remove('hidden');
+    monitorContent.classList.add('hidden');
+
+    try {
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'GET_MONITOR_DATA', profile: currentUser.profilo })
+        });
+        const data = await response.json();
+
+        if (data.status === 'success') {
+            renderMonitorDashboard(data);
+        } else {
+            alert("Monitor: " + data.message);
+            monitorScreen.classList.add('hidden');
+        }
+    } catch (e) {
+        alert("Errore caricamento monitoraggio.");
+        monitorScreen.classList.add('hidden');
+    } finally {
+        monitorLoading.classList.add('hidden');
+        monitorContent.classList.remove('hidden');
+    }
+}
+
+function renderMonitorDashboard(data) {
+    if (data.lastUpdated) {
+        const date = new Date(data.lastUpdated);
+        monitorLastUpdated.textContent = date.toLocaleString('it-IT');
+    }
+
+    // Email Quota
+    const emailUsed = 1500 - data.emailQuota;
+    const emailPerc = (emailUsed / 1500 * 100);
+    const emailBar = document.getElementById('quota-email-bar');
+    emailBar.style.width = emailPerc + '%';
+    document.getElementById('quota-email-text').textContent = `${emailUsed} / 1500`;
+    
+    if (emailPerc >= 90) emailBar.className = 'quota-progress-fill critical';
+    else if (emailPerc >= 70) emailBar.className = 'quota-progress-fill warning';
+    else emailBar.className = 'quota-progress-fill';
+
+    // App Table
+    monitorBody.innerHTML = '';
+    let totalErrors = 0;
+    
+    data.apps.forEach(app => {
+        const errCount = parseInt(app.ERRORI_7G || 0);
+        const execCount = parseInt(app.ESECUZIONI_7G || 0);
+        const errRate = parseFloat(app.ERROR_RATE || 0);
+        
+        totalErrors += errCount;
+
+        const tr = document.createElement('tr');
+        
+        // Alert Color Coding per riga
+        if (errRate >= 20 || errCount > 50) tr.className = 'table-row-critical';
+        else if (errRate >= 10 || errCount > 20) tr.className = 'table-row-warning';
+
+        // Badge colore
+        let rateClass = 'badge-low';
+        if (errRate >= 15) rateClass = 'badge-high';
+        else if (errRate >= 5) rateClass = 'badge-mid';
+
+        tr.innerHTML = `
+            <td>
+                <div style="font-weight:600;">${app.NOME}</div>
+                <div style="font-size:9px; color:var(--text-muted); font-family:monospace;">${app.ID}</div>
+            </td>
+            <td>${execCount}</td>
+            <td><span class="monitor-badge ${rateClass}">${app.ERROR_RATE}</span></td>
+            <td style="font-size:11px; white-space: normal; max-width: 200px;">${app.POSIZIONE}</td>
+            <td>
+                <a href="${app.URL}" target="_blank" class="btn-primary-small" style="padding:4px 8px; font-size:10px;">
+                    <i class="fa-solid fa-code"></i> Apri
+                </a>
+            </td>
+        `;
+        monitorBody.appendChild(tr);
+    });
+
+    // Salute Generale
+    const healthPerc = data.apps.length > 0 ? (100 - (totalErrors / data.apps.length * 10)).toFixed(1) : 100;
+    const hBar = document.getElementById('quota-health-bar');
+    const clampedHealth = Math.max(0, Math.min(100, healthPerc));
+    hBar.style.width = clampedHealth + '%';
+    document.getElementById('quota-health-text').textContent = `${clampedHealth}% Ok`;
+    
+    if (clampedHealth <= 70) hBar.className = 'quota-progress-fill critical';
+    else if (clampedHealth <= 85) hBar.className = 'quota-progress-fill warning';
+    else hBar.className = 'quota-progress-fill';
 }
 
 function renderUtenti() {
