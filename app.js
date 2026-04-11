@@ -437,38 +437,35 @@ async function fetchMyTimbrature() {
 
 function renderTimbrature(data) {
     const tableHTML = `
-        <h3 style="color:white; margin-bottom: 15px;">Mese: ${data.mese}/${data.anno} - <span style="color:var(--primary-color)">${data.nome}</span></h3>
-        <p style="color:var(--text-muted); font-size:13px; margin-bottom:15px;">*Le doppie timbrature continue (< 15 min) sono tagliate per chiarezza.</p>
+        <h3 style="color:white; margin-bottom: 5px;">Mese: ${data.mese}/${data.anno}</h3>
+        <p style="color:var(--primary-color); font-weight: 600; margin-bottom: 15px;">Persona: ${data.nome}</p>
         <div class="table-responsive">
             <table class="admin-table">
                 <thead>
                     <tr>
-                        <th>Giorno</th>
-                        <th>Timbrature Valide</th>
+                        <th style="width: 60px;">Data</th>
+                        <th>Timbrature</th>
+                        <th style="width: 70px;">Pausa</th>
+                        <th style="width: 60px;">Ore</th>
                     </tr>
                 </thead>
                 <tbody>
                     ${data.giorni.map(g => {
-                        let pausaTesto = '';
-                        if (g.stamps.length >= 4) {
-                            let [h1, m1] = g.stamps[1].split(':');
-                            let [h2, m2] = g.stamps[2].split(':');
-                            let d1 = new Date(2000, 0, 1, h1, m1);
-                            let d2 = new Date(2000, 0, 1, h2, m2);
-                            let diffMins = Math.round((d2 - d1) / 60000);
-                            if (diffMins > 0) {
-                                let labelPausa = diffMins === 60 ? '1 ora' : (diffMins + ' min');
-                                pausaTesto = `<br><span style="font-size: 11px; color: #f59e0b; padding-top: 3px; display: inline-block;">☕ Pausa: ${labelPausa}</span>`;
-                            }
+                        let pausaLabel = '-';
+                        if (g.stamps.length > 0) {
+                            if (g.pauseMin === 60) pausaLabel = '1h';
+                            else if (g.pauseMin > 0) pausaLabel = g.pauseMin + ' min';
+                            else pausaLabel = '0 min';
                         }
 
                         return `
                         <tr>
-                            <td><strong>${g.key}</strong></td>
-                            <td style="color:${g.stamps.length > 0 ? '#10b981' : 'var(--text-muted)'}; font-family:monospace; font-size:15px;">
+                            <td><strong>${g.key.split('/')[0]}/${g.key.split('/')[1]}</strong></td>
+                            <td style="color:${g.stamps.length > 0 ? '#10b981' : 'var(--text-muted)'}; font-family:monospace; font-size:14px;">
                                 ${g.stamps.length > 0 ? g.stamps.join(' - ') : '-'}
-                                ${pausaTesto}
                             </td>
+                            <td style="font-size: 13px; color: #f59e0b;">${pausaLabel}</td>
+                            <td style="font-weight: 600;">${g.hoursWorked > 0 ? g.hoursWorked : '-'}</td>
                         </tr>
                         `;
                     }).join('')}
