@@ -456,13 +456,35 @@ function renderTimbrature(data) {
                             if (g.pauseMin === 60) pausaLabel = '1h';
                             else if (g.pauseMin > 0) pausaLabel = g.pauseMin + ' min';
                             else pausaLabel = '0 min';
+                            
+                            if (g.pauseType === 'timbrata') {
+                                pausaLabel += ' <small style="display:block; font-size:10px; color:#10b981;">(Timbrata)</small>';
+                            } else {
+                                pausaLabel += ' <small style="display:block; font-size:10px; color:#94a3b8;">(Offset)</small>';
+                            }
+                        }
+
+                        let stampsLabel = '-';
+                        if (g.stamps.length > 0) {
+                            if (g.stamps.length === 1) {
+                                stampsLabel = `Ing: <span style="color:#10b981;">${g.stamps[0]}</span>`;
+                            } else if (g.stamps.length >= 2) {
+                                let ing = g.stamps[0];
+                                let usc = g.stamps[g.stamps.length - 1];
+                                stampsLabel = `<div style="display:flex; flex-direction:column; gap:2px;">
+                                    <div>Ing: <span style="color:#10b981;">${ing}</span> | Usc: <span style="color:#ef4444;">${usc}</span></div>
+                                </div>`;
+                            }
+                            if (g.stamps.length > 2) {
+                                stampsLabel += `<div style="font-size:10px; color:var(--text-muted); margin-top:2px;">Tutte: ${g.stamps.join(' - ')}</div>`;
+                            }
                         }
 
                         return `
                         <tr>
                             <td><strong>${g.key.split('/')[0]}/${g.key.split('/')[1]}</strong></td>
-                            <td style="color:${g.stamps.length > 0 ? '#10b981' : 'var(--text-muted)'}; font-family:monospace; font-size:14px;">
-                                ${g.stamps.length > 0 ? g.stamps.join(' - ') : '-'}
+                            <td style="font-family:monospace; font-size:13px; color: white;">
+                                ${stampsLabel}
                             </td>
                             <td style="font-size: 13px; color: #f59e0b;">${pausaLabel}</td>
                             <td style="font-weight: 600;">${g.hoursWorked > 0 ? g.hoursWorked : '-'}</td>
