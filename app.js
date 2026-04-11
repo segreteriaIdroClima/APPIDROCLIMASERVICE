@@ -515,6 +515,29 @@ btnAdminBack.addEventListener('click', () => {
     loadApps(); // ricarica le app nel caso i permessi siano cambiati
 });
 
+const btnSharePortal = document.getElementById('btn-share-portal');
+if (btnSharePortal) {
+    btnSharePortal.addEventListener('click', () => {
+        // Pulisce l'URL (elimina eventuali '?hash' o query vecchie) ma mantiene l'URL base
+        const urlToShare = window.location.origin + window.location.pathname;
+        navigator.clipboard.writeText(urlToShare).then(() => {
+            const originalHTML = btnSharePortal.innerHTML;
+            btnSharePortal.innerHTML = '<i class="fa-solid fa-check"></i> Copiato!';
+            btnSharePortal.style.background = '#10b981';
+            btnSharePortal.style.borderColor = '#10b981';
+            btnSharePortal.style.color = '#fff';
+            setTimeout(() => {
+                btnSharePortal.innerHTML = originalHTML;
+                btnSharePortal.style.background = '';
+                btnSharePortal.style.borderColor = '';
+                btnSharePortal.style.color = '';
+            }, 2000);
+        }).catch(err => {
+            alert("Errore durante la copia del link: " + err);
+        });
+    });
+}
+
 async function loadAdminData() {
     adminLoading.classList.remove('hidden');
     adminContent.classList.add('hidden');
