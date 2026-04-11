@@ -37,6 +37,8 @@ const tableAppsBody = document.querySelector('#table-apps tbody');
 const tableGruppiBody = document.getElementById('gruppi-body');
 const tablePermessiHeader = document.getElementById('permessi-header');
 const tablePermessiBody = document.getElementById('permessi-body');
+const transitionOverlay = document.getElementById('transition-overlay');
+const transitionIconContainer = document.getElementById('transition-icon-container');
 
 // State
 let currentUser = null;
@@ -201,11 +203,16 @@ function renderApps(apps) {
         if (app.isAllowed) {
             card.onclick = (e) => {
                 e.preventDefault();
-                if (app.link === 'native://timbrature') {
-                    openTimbratureNative();
-                } else {
-                    openAppInIframe(app.nome, app.link);
-                }
+                const targetUrl = app.link;
+                const targetName = app.nome;
+                
+                runAppTransition(card, () => {
+                    if (targetUrl === 'native://timbrature') {
+                        openTimbratureNative();
+                    } else {
+                        openAppInIframe(targetName, targetUrl);
+                    }
+                });
             };
         } else {
             card.onclick = (e) => {
@@ -255,7 +262,9 @@ function renderApps(apps) {
         adminCard.href = '#';
         adminCard.onclick = (e) => {
             e.preventDefault();
-            showAdminScreen();
+            runAppTransition(adminCard, () => {
+                showAdminScreen();
+            });
         };
         adminCard.innerHTML = `
             <div class="app-icon" style="background-color: #10b981;">
@@ -265,6 +274,71 @@ function renderApps(apps) {
         `;
         appsContainer.appendChild(adminCard);
     }
+}
+
+// Logica Transizione Premium
+function runAppTransition(sourceElement, callback) {
+    // 1. Prepara l'icona da clonare
+    const icon = sourceElement.querySelector('img') || sourceElement.querySelector('.app-icon');
+    if (!icon) {
+        callback();
+        return;
+    }
+
+    const rect = icon.getBoundingClientRect();
+    const clone = icon.cloneNode(true);
+    
+    // Cattura stili calcolati per coerenza (es. background-color)
+    const computedStyle = window.getComputedStyle(icon);
+    const bgColor = computedStyle.backgroundColor;
+
+    // Rimuovi stili inline che potrebbero interferire se presenti
+    clone.style.margin = '0';
+    clone.style.position = 'fixed';
+    clone.style.top = rect.top + 'px';
+    clone.style.left = rect.left + 'px';
+    clone.style.width = rect.width + 'px';
+    clone.style.height = rect.height + 'px';
+    
+    // Se è un'icona FA (div.app-icon), applica il colore originale
+    if (icon.classList.contains('app-icon')) {
+        clone.style.backgroundColor = bgColor;
+    }
+    
+    clone.classList.add('transition-clone');
+    
+    document.body.appendChild(clone);
+
+    // 2. Mostra l'overlay
+    transitionOverlay.classList.remove('hidden');
+    // Piccolo delay per permettere al browser di registrare la rimozione di hidden prima di opacity
+    setTimeout(() => transitionOverlay.classList.add('active'), 10);
+
+    // 3. Sequenza Animazioni
+    // Step A: Sposta al centro e scala un po'
+    setTimeout(() => {
+        clone.classList.add('moving');
+    }, 50);
+
+    // Step B: Ruota su se stesso
+    setTimeout(() => {
+        clone.classList.add('spinning');
+    }, 600);
+
+    // Step C: Zoom finale ed esecuzione callback (cambio schermata)
+    setTimeout(() => {
+        clone.classList.add('zooming');
+        callback();
+    }, 1400);
+
+    // Step D: Pulizia e chiusura overlay
+    setTimeout(() => {
+        transitionOverlay.classList.remove('active');
+        setTimeout(() => {
+            transitionOverlay.classList.add('hidden');
+            clone.remove();
+        }, 500);
+    }, 2000);
 }
 
 // Logica Apertura App in iFrame
