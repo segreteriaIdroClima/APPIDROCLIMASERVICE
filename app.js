@@ -314,8 +314,8 @@ function runAppTransition(sourceElement, callback) {
     // Piccolo delay per permettere al browser di registrare la rimozione di hidden prima di opacity
     setTimeout(() => transitionOverlay.classList.add('active'), 10);
 
-    // 3. Sequenza Animazioni
-    // Step A: Sposta al centro e scala un po'
+    // 3. Sequenza Animazioni (Totale ~3 secondi)
+    // Step A: Sposta al centro
     setTimeout(() => {
         clone.classList.add('moving');
     }, 50);
@@ -323,13 +323,13 @@ function runAppTransition(sourceElement, callback) {
     // Step B: Ruota su se stesso
     setTimeout(() => {
         clone.classList.add('spinning');
-    }, 600);
+    }, 850);
 
     // Step C: Zoom finale ed esecuzione callback (cambio schermata)
     setTimeout(() => {
         clone.classList.add('zooming');
         callback();
-    }, 1400);
+    }, 2100);
 
     // Step D: Pulizia e chiusura overlay
     setTimeout(() => {
@@ -337,8 +337,8 @@ function runAppTransition(sourceElement, callback) {
         setTimeout(() => {
             transitionOverlay.classList.add('hidden');
             clone.remove();
-        }, 500);
-    }, 2000);
+        }, 600);
+    }, 3200);
 }
 
 // Logica Apertura App in iFrame
