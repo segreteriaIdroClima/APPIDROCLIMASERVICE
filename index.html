@@ -266,6 +266,11 @@
         </header>
 
         <main class="main-content" style="max-width: 100%; padding: 15px; overflow-y: auto; flex: 1; -webkit-overflow-scrolling: touch;">
+            <div id="monitor-error" class="hidden" style="margin-bottom: 20px; padding: 12px; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; color: #f87171; font-size: 13px; display: flex; align-items: flex-start; gap: 10px;">
+                <i class="fa-solid fa-circle-exclamation" style="margin-top: 2px;"></i>
+                <div id="monitor-error-msg"></div>
+            </div>
+
             <div id="monitor-loading" class="loading-state hidden">
                 <i class="fa-solid fa-circle-notch fa-spin fa-3x"></i>
                 <p>Scansione ecosistema Apps Script...</p>

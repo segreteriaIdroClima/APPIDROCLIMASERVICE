@@ -49,6 +49,8 @@ const monitorBody = document.getElementById('monitor-body');
 const monitorLastUpdated = document.getElementById('monitor-last-updated');
 const toggleLimits = document.getElementById('toggle-limits');
 const limitsDetails = document.getElementById('limits-details');
+const monitorError = document.getElementById('monitor-error');
+const monitorErrorMsg = document.getElementById('monitor-error-msg');
 
 // State
 let currentUser = null;
@@ -554,7 +556,13 @@ function renderAdminDashboard() {
 
 function openMonitorScreen() {
     monitorScreen.classList.remove('hidden');
+    monitorError.classList.add('hidden'); // Reset errori
     loadMonitorData();
+}
+
+function showMonitorError(msg) {
+    monitorErrorMsg.innerHTML = msg;
+    monitorError.classList.remove('hidden');
 }
 
 btnMonitorBack.addEventListener('click', () => {
@@ -586,12 +594,10 @@ async function loadMonitorData() {
         if (data.status === 'success') {
             renderMonitorDashboard(data);
         } else {
-            alert("Monitor: " + data.message);
-            monitorScreen.classList.add('hidden');
+            showMonitorError("<b>Errore Server:</b> " + data.message);
         }
     } catch (e) {
-        alert("Errore caricamento monitoraggio.");
-        monitorScreen.classList.add('hidden');
+        showMonitorError("<b>Connessione fallita:</b> Impossibile recuperare i dati dal monitoraggio GAS.");
     } finally {
         monitorLoading.classList.add('hidden');
         monitorContent.classList.remove('hidden');
@@ -605,15 +611,23 @@ function renderMonitorDashboard(data) {
     }
 
     // Email Quota
-    const emailUsed = 1500 - data.emailQuota;
-    const emailPerc = (emailUsed / 1500 * 100);
     const emailBar = document.getElementById('quota-email-bar');
-    emailBar.style.width = emailPerc + '%';
-    document.getElementById('quota-email-text').textContent = `${emailUsed} / 1500`;
+    const emailText = document.getElementById('quota-email-text');
     
-    if (emailPerc >= 90) emailBar.className = 'quota-progress-fill critical';
-    else if (emailPerc >= 70) emailBar.className = 'quota-progress-fill warning';
-    else emailBar.className = 'quota-progress-fill';
+    if (data.emailQuota === -1) {
+        emailBar.style.width = '0%';
+        emailText.textContent = "Permessi non concessi";
+        showMonitorError("<b>Permessi Email:</b> Google non ha autorizzato la lettura delle quote email. Prova a eseguire nuovamente 'scanner_hourlyAudit' dall'editor script per forzare l'autorizzazione.");
+    } else {
+        const emailUsed = 1500 - data.emailQuota;
+        const emailPerc = (emailUsed / 1500 * 100);
+        emailBar.style.width = emailPerc + '%';
+        emailText.textContent = `${emailUsed} / 1500`;
+        
+        if (emailPerc >= 90) emailBar.className = 'quota-progress-fill critical';
+        else if (emailPerc >= 70) emailBar.className = 'quota-progress-fill warning';
+        else emailBar.className = 'quota-progress-fill';
+    }
 
     // App Table
     monitorBody.innerHTML = '';
