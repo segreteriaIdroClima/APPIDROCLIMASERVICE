@@ -446,7 +446,6 @@ function renderTimbrature(data) {
                         <th style="width: 60px;">Data</th>
                         <th>Timbrature</th>
                         <th style="width: 70px;">Pausa</th>
-                        <th style="width: 60px;">Ore</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -487,7 +486,6 @@ function renderTimbrature(data) {
                                 ${stampsLabel}
                             </td>
                             <td style="font-size: 13px; color: #f59e0b;">${pausaLabel}</td>
-                            <td style="font-weight: 600;">${g.hoursWorked > 0 ? g.hoursWorked : '-'}</td>
                         </tr>
                         `;
                     }).join('')}
