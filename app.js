@@ -58,15 +58,35 @@ let adminData = null; // { utenti, profili, apps, permessi }
 
 // Registrazione Service Worker per PWA e Caching PWA Install
 let deferredPrompt;
+
+// Aiuto per Installazione iOS (Apple Safari)
+const isIos = () => {
+  const userAgent = window.navigator.userAgent.toLowerCase();
+  return /iphone|ipad|ipod/.test( userAgent );
+}
+const isInStandaloneMode = () => ('standalone' in window.navigator) && (window.navigator.standalone);
+
+if (isIos() && !isInStandaloneMode()) {
+    // Forza la visibilità del tasto installa per Apple
+    btnInstall.classList.remove('hidden');
+    btnInstall.innerHTML = '<i class="fa-brands fa-apple"></i> Setup su iPhone/iPad';
+}
+
 window.addEventListener('beforeinstallprompt', (e) => {
     // Previeni apparizione banner automatico
     e.preventDefault();
     deferredPrompt = e;
-    // Mostra il pulsante di installazione
+    // Mostra il pulsante di installazione (ambiente Android/PC)
     btnInstall.classList.remove('hidden');
 });
 
 btnInstall.addEventListener('click', async () => {
+    // Seleziona comportamento Apple
+    if (isIos() && !isInStandaloneMode()) {
+        alert("PER INSTALLARE SU APPLE iOS:\n\n1. Tocca l'icona 'Condividi' (il quadrato con la freccia rivolta in alto) nella barra inferiore di Safari.\n2. Scorri il menù e tocca 'Aggiungi alla schermata Home' o 'Aggiungi a Home'.");
+        return;
+    }
+
     if (deferredPrompt) {
         deferredPrompt.prompt();
         const { outcome } = await deferredPrompt.userChoice;
