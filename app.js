@@ -238,6 +238,14 @@ function renderApps(apps) {
                 const targetUrl = app.link;
                 const targetName = app.nome;
                 
+                // FIX per iOS: Apple blocca i popup (window.open) se aperti in modo asincrono (dopo l'animazione).
+                // Inoltre Apple blocca i cookie di terze parti (ITP) negli iframe, impedendo il login Google
+                // per le app ristrette al dominio "idroclima". Aprendo in '_blank' sincrono aggiriamo entrambi i problemi.
+                if (isIos() && targetUrl !== 'native://timbrature') {
+                    window.open(targetUrl, '_blank');
+                    return;
+                }
+
                 runAppTransition(card, () => {
                     if (targetUrl === 'native://timbrature') {
                         openTimbratureNative();
@@ -375,14 +383,6 @@ function runAppTransition(sourceElement, callback) {
 
 // Logica Apertura App in iFrame
 function openAppInIframe(nome, url) {
-    // FIX per Apple iOS ITP (Intelligent Tracking Prevention)
-    // Su iOS le modali/iframe di Google Apps script cross-origin con accesso ristretto bloccano i cookie di sessione.
-    // Dobbiamo aprirle in una nuova finestra in modo da essere in contesto first-party per Safari.
-    if (isIos()) {
-        window.open(url, '_blank');
-        return;
-    }
-
     document.body.style.overflow = 'hidden'; // Blocca scroll corpo
     iframeTitle.textContent = nome;
     appIframe.src = url;
