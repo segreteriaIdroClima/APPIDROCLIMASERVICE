@@ -17,6 +17,14 @@ const userGreeting = document.getElementById('user-greeting');
 const appsContainer = document.getElementById('apps-container');
 const loadingApps = document.getElementById('loading-apps');
 
+// Elementi Settings
+const btnSettings = document.getElementById('btn-settings');
+const settingsScreen = document.getElementById('settings-screen');
+const btnCloseSettings = document.getElementById('btn-close-settings');
+const btnSaveSettings = document.getElementById('btn-save-settings');
+const inputGoogleAccount = document.getElementById('settings-google-account');
+const settingsMsg = document.getElementById('settings-msg');
+
 // Elementi iFrame
 const iframeScreen = document.getElementById('iframe-screen');
 const appIframe = document.getElementById('app-iframe');
@@ -191,6 +199,40 @@ btnLogout.addEventListener('click', () => {
     currentUser = null;
     showLoginScreen();
 });
+
+// Gestione Impostazioni Locali
+if (btnSettings) {
+    btnSettings.addEventListener('click', () => {
+        const savedAccount = localStorage.getItem('pref_google_account') || '';
+        inputGoogleAccount.value = savedAccount;
+        if (settingsMsg) settingsMsg.style.display = 'none';
+        settingsScreen.classList.remove('hidden');
+    });
+}
+
+if (btnCloseSettings) {
+    btnCloseSettings.addEventListener('click', () => {
+        settingsScreen.classList.add('hidden');
+    });
+}
+
+if (btnSaveSettings) {
+    btnSaveSettings.addEventListener('click', () => {
+        const email = inputGoogleAccount.value.trim();
+        if (email) {
+            localStorage.setItem('pref_google_account', email);
+        } else {
+            localStorage.removeItem('pref_google_account');
+        }
+        if (settingsMsg) {
+            settingsMsg.style.display = 'block';
+            setTimeout(() => {
+                settingsMsg.style.display = 'none';
+                settingsScreen.classList.add('hidden');
+            }, 1500);
+        }
+    });
+}
 
 // Caricamento App
 async function loadApps() {
@@ -375,9 +417,22 @@ function runAppTransition(sourceElement, callback) {
 
 // Logica Apertura App in iFrame
 function openAppInIframe(nome, url) {
+    let finalUrl = url;
+    const prefAccount = localStorage.getItem('pref_google_account');
+    if (prefAccount && prefAccount.trim() !== '') {
+        try {
+            const parsed = new URL(finalUrl);
+            parsed.searchParams.set('authuser', prefAccount.trim());
+            finalUrl = parsed.toString();
+        } catch (e) {
+            const separator = finalUrl.includes('?') ? '&' : '?';
+            finalUrl += `${separator}authuser=${encodeURIComponent(prefAccount.trim())}`;
+        }
+    }
+
     document.body.style.overflow = 'hidden'; // Blocca scroll corpo
     iframeTitle.textContent = nome;
-    appIframe.src = url;
+    appIframe.src = finalUrl;
     iframeScreen.classList.remove('hidden');
 
     const wrapper = appIframe.parentElement;
