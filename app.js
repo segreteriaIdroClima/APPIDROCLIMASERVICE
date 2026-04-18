@@ -228,8 +228,10 @@ function renderApps(apps) {
     }
 
     apps.forEach(app => {
+        if (!app.isAllowed) return; // L'admin ha chiesto di nasconderle completamente
+
         const card = document.createElement('a');
-        card.className = 'app-card ' + (app.isAllowed ? '' : 'disabled');
+        card.className = 'app-card';
         card.href = '#';
 
         if (app.isAllowed) {
@@ -241,7 +243,7 @@ function renderApps(apps) {
                 // FIX per iOS: Apple blocca i popup (window.open) se aperti in modo asincrono (dopo l'animazione).
                 // Inoltre Apple blocca i cookie di terze parti (ITP) negli iframe, impedendo il login Google
                 // per le app ristrette al dominio "idroclima". Aprendo in '_blank' sincrono aggiriamo entrambi i problemi.
-                if (isIos() && targetUrl !== 'native://timbrature') {
+                if (isIos() && !targetUrl.startsWith('native://')) {
                     window.open(targetUrl, '_blank');
                     return;
                 }
@@ -249,6 +251,10 @@ function renderApps(apps) {
                 runAppTransition(card, () => {
                     if (targetUrl === 'native://timbrature') {
                         openTimbratureNative();
+                    } else if (targetUrl === 'native://procedure') {
+                        openDriveViewerNative('procedure', targetName);
+                    } else if (targetUrl === 'native://comunicazioni') {
+                        openDriveViewerNative('comunicazioni', targetName);
                     } else {
                         openAppInIframe(targetName, targetUrl);
                     }
@@ -832,6 +838,7 @@ function renderAppsAdmin() {
             <td><input type="text" value="${a.NOME_APP}" data-idx="${i}" data-field="NOME_APP" class="a-input"></td>
             <td><input type="text" value="${a.LINK_DEPLOYMENT}" data-idx="${i}" data-field="LINK_DEPLOYMENT" class="a-input" style="width:150px"></td>
             <td><input type="text" list="icone-list" value="${a.ICONA}" data-idx="${i}" data-field="ICONA" class="a-input" style="width:100px" placeholder="Seleziona icona..."></td>
+            <td><input type="number" value="${a.ORDINE || 99}" data-idx="${i}" data-field="ORDINE" class="a-input" style="width:60px"></td>
             <td>
                 <label class="toggle-switch">
                     <input type="checkbox" data-idx="${i}" data-field="ATTIVA" class="a-toggle" ${isAttiva ? 'checked' : ''}>
@@ -1030,3 +1037,295 @@ btnAdminSave.addEventListener('click', async () => {
 
 // Avvia app
 init();
+
+// ================= DRIVE VIEWER & KEYWORDS LOGIC =================
+
+const driveViewerScreen = document.getElementById('drive-viewer-screen');
+const btnCloseDriveViewer = document.getElementById('btn-close-drive-viewer');
+const driveViewerTitle = document.getElementById('drive-viewer-title');
+const driveViewerIcon = document.getElementById('drive-viewer-icon');
+const driveViewerList = document.getElementById('drive-viewer-list');
+const driveViewerLoading = document.getElementById('drive-viewer-loading');
+const driveViewerError = document.getElementById('drive-viewer-error');
+const driveViewerSearch = document.getElementById('drive-viewer-search');
+
+const keywordModal = document.getElementById('keyword-modal');
+const btnCloseKeywordModal = document.getElementById('btn-close-keyword-modal');
+const keywordInput = document.getElementById('keyword-input');
+const btnAddKeyword = document.getElementById('btn-add-keyword');
+const keywordTagsContainer = document.getElementById('keyword-tags-container');
+const keywordModalFileName = document.getElementById('keyword-modal-file-name');
+const btnSaveKeywords = document.getElementById('btn-save-keywords');
+
+let currentDriveFiles = [];
+let currentDriveType = '';
+let currentEditingFileId = null;
+let currentEditingKeywords = [];
+
+function openDriveViewerNative(type, title) {
+    document.body.style.overflow = 'hidden';
+    driveViewerScreen.classList.remove('hidden');
+    driveViewerLoading.classList.remove('hidden');
+    driveViewerError.classList.add('hidden');
+    driveViewerList.innerHTML = '';
+    
+    if (driveViewerSearch) {
+        driveViewerSearch.value = '';
+    }
+    
+    currentDriveType = type;
+    if (driveViewerTitle) driveViewerTitle.textContent = title;
+    if (driveViewerIcon) {
+        if (type === 'procedure') {
+            driveViewerIcon.className = 'fa-solid fa-book';
+        } else {
+            driveViewerIcon.className = 'fa-solid fa-bullhorn';
+        }
+    }
+
+    fetchDriveFiles(type);
+}
+
+if (btnCloseDriveViewer) {
+    btnCloseDriveViewer.addEventListener('click', () => {
+        document.body.style.overflow = '';
+        driveViewerScreen.classList.add('hidden');
+    });
+}
+
+async function fetchDriveFiles(type) {
+    try {
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+                action: 'GET_DRIVE_FILES',
+                type: type
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.status === 'success') {
+            currentDriveFiles = data.files;
+            renderDriveFiles(currentDriveFiles);
+        } else {
+            driveViewerError.textContent = data.message || 'Errore nel caricamento dei file.';
+            driveViewerError.classList.remove('hidden');
+        }
+    } catch (error) {
+        driveViewerError.textContent = 'Errore di rete. Impossibile connettersi al server.';
+        driveViewerError.classList.remove('hidden');
+    } finally {
+        driveViewerLoading.classList.add('hidden');
+    }
+}
+
+function renderDriveFiles(files) {
+    driveViewerList.innerHTML = '';
+    
+    if (files.length === 0) {
+        driveViewerList.innerHTML = '<div style="text-align:center; padding: 20px; color: #94a3b8;">Nessun file trovato.</div>';
+        return;
+    }
+
+    const canEditProcedure = currentUser && (currentUser.canEditProcedure === true || currentUser.isAdmin === true || currentUser.isAdmin === 'TRUE' || currentUser.isAdmin === 'Vero');
+
+    files.forEach(file => {
+        const card = document.createElement('div');
+        card.style.background = 'rgba(30, 41, 59, 0.8)';
+        card.style.borderRadius = '8px';
+        card.style.padding = '15px';
+        card.style.display = 'flex';
+        card.style.flexDirection = 'column';
+        card.style.gap = '10px';
+        card.style.border = '1px solid rgba(255,255,255,0.05)';
+
+        let iconClass = 'fa-solid fa-file';
+        let iconColor = '#94a3b8';
+        if (file.mimeType.includes('pdf')) { iconClass = 'fa-solid fa-file-pdf'; iconColor = '#ef4444'; }
+        else if (file.mimeType.includes('document')) { iconClass = 'fa-solid fa-file-word'; iconColor = '#3b82f6'; }
+        else if (file.mimeType.includes('spreadsheet')) { iconClass = 'fa-solid fa-file-excel'; iconColor = '#10b981'; }
+
+        let keywordsHtml = '';
+        if (file.keywords && file.keywords.length > 0) {
+            keywordsHtml = '<div style="display: flex; flex-wrap: wrap; gap: 5px; margin-top: 5px;">' +
+                file.keywords.map(kw => '<span style="background: rgba(16, 185, 129, 0.2); color: #10b981; font-size: 11px; padding: 2px 6px; border-radius: 4px;">' + kw + '</span>').join('') +
+                '</div>';
+        }
+
+        const dateStr = new Date(file.lastUpdated).toLocaleDateString('it-IT');
+
+        card.innerHTML = `
+            <div style="display: flex; align-items: flex-start; gap: 15px;">
+                <div style="font-size: 24px; color: ${iconColor};"><i class="${iconClass}"></i></div>
+                <div style="flex: 1;">
+                    <div style="color: white; font-weight: 600; font-size: 14px; word-break: break-word;">${file.name}</div>
+                    <div style="color: #94a3b8; font-size: 11px; margin-top: 2px;">Aggiornato il: ${dateStr}</div>
+                    ${keywordsHtml}
+                </div>
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 5px;">
+                ${currentDriveType === 'procedure' && canEditProcedure ? 
+                    '<button class="btn-secondary-small btn-edit-kw" data-id="' + file.id + '" style="background: transparent; border: 1px solid #334155; color: #cbd5e1; padding: 6px 10px;">' +
+                        '<i class="fa-solid fa-tags"></i> Keyword' +
+                    '</button>' : ''
+                }
+                <a href="${file.url}" target="_blank" class="btn-primary-small" style="padding: 6px 12px; text-decoration: none;">
+                    <i class="fa-solid fa-eye"></i> Apri
+                </a>
+            </div>
+        `;
+        
+        driveViewerList.appendChild(card);
+    });
+
+    // Add event listeners to the new buttons
+    document.querySelectorAll('.btn-edit-kw').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const fileId = e.currentTarget.getAttribute('data-id');
+            const file = currentDriveFiles.find(f => f.id === fileId);
+            if (file) {
+                openKeywordModal(file);
+            }
+        });
+    });
+}
+
+if (driveViewerSearch) {
+    driveViewerSearch.addEventListener('input', (e) => {
+        const term = e.target.value.toLowerCase().trim();
+        if (!term) {
+            renderDriveFiles(currentDriveFiles);
+            return;
+        }
+
+        const filtered = currentDriveFiles.filter(file => {
+            const nameMatch = file.name.toLowerCase().includes(term);
+            const kwMatch = file.keywords && file.keywords.some(kw => kw.toLowerCase().includes(term));
+            return nameMatch || kwMatch;
+        });
+
+        renderDriveFiles(filtered);
+    });
+}
+
+// === Keyword Modal Logic ===
+
+function openKeywordModal(file) {
+    currentEditingFileId = file.id;
+    currentEditingKeywords = [...(file.keywords || [])];
+    
+    if (keywordModalFileName) keywordModalFileName.textContent = file.name;
+    if (keywordInput) keywordInput.value = '';
+    renderKeywordTags();
+    
+    if (keywordModal) keywordModal.classList.remove('hidden');
+}
+
+if (btnCloseKeywordModal) {
+    btnCloseKeywordModal.addEventListener('click', () => {
+        if (keywordModal) keywordModal.classList.add('hidden');
+    });
+}
+
+function renderKeywordTags() {
+    if (!keywordTagsContainer) return;
+    keywordTagsContainer.innerHTML = '';
+    if (currentEditingKeywords.length === 0) {
+        keywordTagsContainer.innerHTML = '<span style="color: #64748b; font-size: 13px;">Nessuna keyword.</span>';
+        return;
+    }
+
+    currentEditingKeywords.forEach((kw, index) => {
+        const tag = document.createElement('div');
+        tag.style.background = '#1e293b';
+        tag.style.color = '#10b981';
+        tag.style.padding = '4px 8px';
+        tag.style.borderRadius = '12px';
+        tag.style.fontSize = '12px';
+        tag.style.display = 'flex';
+        tag.style.alignItems = 'center';
+        tag.style.gap = '5px';
+        tag.style.border = '1px solid #10b981';
+        
+        tag.innerHTML = `
+            ${kw}
+            <i class="fa-solid fa-xmark remove-kw" data-idx="${index}" style="cursor: pointer; color: #ef4444;"></i>
+        `;
+        keywordTagsContainer.appendChild(tag);
+    });
+
+    document.querySelectorAll('.remove-kw').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const idx = parseInt(e.currentTarget.getAttribute('data-idx'));
+            currentEditingKeywords.splice(idx, 1);
+            renderKeywordTags();
+        });
+    });
+}
+
+if (btnAddKeyword) {
+    btnAddKeyword.addEventListener('click', () => {
+        if (!keywordInput) return;
+        const newKw = keywordInput.value.trim();
+        if (newKw && !currentEditingKeywords.includes(newKw)) {
+            currentEditingKeywords.push(newKw);
+            keywordInput.value = '';
+            renderKeywordTags();
+        }
+    });
+}
+
+if (keywordInput) {
+    keywordInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            if (btnAddKeyword) btnAddKeyword.click();
+        }
+    });
+}
+
+if (btnSaveKeywords) {
+    btnSaveKeywords.addEventListener('click', async () => {
+        btnSaveKeywords.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+        btnSaveKeywords.disabled = true;
+
+        try {
+            const response = await fetch(API_URL, {
+                method: 'POST',
+                body: JSON.stringify({
+                    action: 'SAVE_PROCEDURE_KEYWORDS',
+                    fileId: currentEditingFileId,
+                    keywords: currentEditingKeywords
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.status === 'success') {
+                // Aggiorna array locale
+                const file = currentDriveFiles.find(f => f.id === currentEditingFileId);
+                if (file) {
+                    file.keywords = [...currentEditingKeywords];
+                }
+                // Chiudi modale e re-render
+                if (keywordModal) keywordModal.classList.add('hidden');
+                
+                // Forza re-render con ricerca corrente
+                if (driveViewerSearch) {
+                    const event = new Event('input');
+                    driveViewerSearch.dispatchEvent(event);
+                } else {
+                    renderDriveFiles(currentDriveFiles);
+                }
+            } else {
+                alert('Errore salvataggio: ' + data.message);
+            }
+        } catch (error) {
+            alert('Errore di rete al salvataggio.');
+        } finally {
+            btnSaveKeywords.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Salva';
+            btnSaveKeywords.disabled = false;
+        }
+    });
+}
