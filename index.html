@@ -15,7 +15,7 @@
     <link rel="icon" type="image/png" href="idroclima-drop-48.png" sizes="48x48">
 
     <!-- CSS e Font -->
-    <link rel="stylesheet" href="style.css?v=13">
+    <link rel="stylesheet" href="style.css?v=14">
     <!-- Font Awesome per le icone (opzionale, caricato tramite CDN per semplicità) -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
@@ -215,7 +215,7 @@
 
         <div id="iframe-container" style="width: 100%; height: 100%; display: flex; flex-direction: column; background: #0f172a; box-shadow: 0 0 30px rgba(0,0,0,0.8); position: relative;">
             <!-- Header per iFrame -->
-            <div
+            <div id="iframe-toolbar"
                 style="background: rgba(15, 23, 42, 0.95); padding: 12px 15px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.1); width: 100%; box-sizing: border-box; flex-shrink: 0;">
                 <div style="display: flex; align-items: center; gap: 10px; color: white;">
                     <img src="idroclima-drop-48.png" style="height: 24px;">
@@ -227,7 +227,7 @@
                 </button>
             </div>
 
-            <div style="flex: 1; width: 100%; position: relative; overflow: hidden; -webkit-overflow-scrolling: touch;">
+            <div id="iframe-body" style="flex: 1; width: 100%; position: relative; overflow: hidden; -webkit-overflow-scrolling: touch;">
                 <iframe id="app-iframe" src="" sandbox="allow-scripts allow-same-origin allow-forms allow-downloads"
                     style="position: absolute; top: 0; left: 0; width: 1px; min-width: 100%; height: 100%; border: 0; outline: 0; margin: 0; padding: 0; display: block; box-sizing: border-box; background: transparent;"></iframe>
             </div>
@@ -411,7 +411,7 @@
         <div id="transition-icon-container"></div>
     </div>
 
-    <script src="app.js?v=13"></script>
+    <script src="app.js?v=14"></script>
 </body>
 
 </html>

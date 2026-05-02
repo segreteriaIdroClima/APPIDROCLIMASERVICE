@@ -263,7 +263,7 @@ function renderApps(apps) {
                     } else if (targetUrl === 'native://comunicazioni') {
                         openDriveViewerNative('comunicazioni', targetName);
                     } else {
-                        openAppInIframe(targetName, targetUrl);
+                        openAppInIframe(targetName, targetUrl, app.id);
                     }
                 });
             };
@@ -395,35 +395,53 @@ function runAppTransition(sourceElement, callback) {
 }
 
 // Logica Apertura App in iFrame
-function openAppInIframe(nome, url) {
-    document.body.style.overflow = 'hidden'; // Blocca scroll corpo
+function openAppInIframe(nome, url, appId = '') {
+    const isTechnicalApp = /tecnico|cruscotto/i.test(`${nome || ''} ${url || ''} ${appId || ''}`);
+    document.body.style.overflow = 'hidden';
     iframeTitle.textContent = nome;
-    appIframe.src = url;
+    iframeScreen.classList.toggle('iframe-technical-mode', isTechnicalApp);
     iframeScreen.classList.remove('hidden');
 
     const wrapper = appIframe.parentElement;
-    
-    // Fix definitivo per visualizzazione nativa (Cruscotto Tecnico e altre app)
-    // Rimuoviamo l'hack 'width: 1px' che causa problemi di scaling su iOS Safari 
-    // per interfacce con unità fluide o font scalati.
-    wrapper.style.overflow = 'hidden';
+    wrapper.style.overflow = isTechnicalApp ? 'auto' : 'hidden';
     wrapper.style.position = 'relative';
     wrapper.style.webkitOverflowScrolling = 'touch';
+
     appIframe.style.position = 'absolute';
     appIframe.style.top = '0';
     appIframe.style.left = '0';
-    appIframe.style.width = '100%';
     appIframe.style.height = '100%';
-    appIframe.style.minWidth = '';
-    appIframe.style.maxWidth = '';
-    appIframe.style.border = 'none';
-    appIframe.removeAttribute('scrolling');
+    appIframe.style.border = '0';
+    appIframe.style.outline = '0';
+    appIframe.style.margin = '0';
+    appIframe.style.padding = '0';
+    appIframe.style.display = 'block';
+    appIframe.style.boxSizing = 'border-box';
+    appIframe.style.background = 'transparent';
+    appIframe.style.transform = 'translateZ(0)';
+
+    if (isTechnicalApp || isIos()) {
+        // Safari mobile calcola spesso male il viewport degli iframe a width:100%.
+        // Questa combinazione mantiene il documento interno alla larghezza reale del telefono.
+        appIframe.style.width = '1px';
+        appIframe.style.minWidth = '100%';
+        appIframe.style.maxWidth = '100%';
+        appIframe.setAttribute('scrolling', 'yes');
+    } else {
+        appIframe.style.width = '100%';
+        appIframe.style.minWidth = '';
+        appIframe.style.maxWidth = '';
+        appIframe.removeAttribute('scrolling');
+    }
+
+    appIframe.src = url;
 }
 
 btnCloseIframe.addEventListener('click', () => {
     iframeScreen.classList.add('hidden');
     appIframe.src = ''; // Svuota per fermare processi in background
     iframeScreen.style.zIndex = ''; // Ripristina z-index se modificato
+    iframeScreen.classList.remove('iframe-technical-mode');
 
     // Ripristina lo scroll solo se non ci sono altre modali full-screen attive
     if (document.getElementById('drive-viewer-screen').classList.contains('hidden') && 
