@@ -381,6 +381,201 @@ function runAppTransition(sourceElement, callback) {
     setTimeout(() => {
         transitionOverlay.classList.remove('active');
         setTimeout(() => {
+btnLogout.addEventListener('click', () => {
+    localStorage.removeItem('portale_session');
+    currentUser = null;
+    showLoginScreen();
+});
+
+// Caricamento App
+async function loadApps() {
+    appsContainer.innerHTML = '';
+    loadingApps.classList.remove('hidden');
+
+    try {
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+                action: 'GET_USER_DATA',
+                userId: currentUser.id || currentUser.ID_UTENTE
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.status === 'success') {
+            renderApps(data.apps);
+        } else {
+            alert("Errore nel caricamento delle app: " + data.message);
+        }
+    } catch (error) {
+        console.error("Errore fetch app:", error);
+        alert("Errore di rete durante il caricamento delle app.");
+    } finally {
+        loadingApps.classList.add('hidden');
+    }
+}
+
+function renderApps(apps) {
+    if (apps.length === 0) {
+        appsContainer.innerHTML = '<p style="grid-column: 1/-1; text-align: center; color: var(--text-muted);">Nessuna applicazione disponibile.</p>';
+        return;
+    }
+
+    apps.forEach(app => {
+        if (!app.isAllowed) return; // L'admin ha chiesto di nasconderle completamente
+
+        const card = document.createElement('a');
+        card.className = 'app-card';
+        card.href = '#';
+
+        if (app.isAllowed) {
+            card.onclick = (e) => {
+                e.preventDefault();
+                const targetUrl = app.link;
+                const targetName = app.nome;
+                
+                // FIX per iOS: Apple blocca i popup (window.open) se aperti in modo asincrono (dopo l'animazione).
+                // Inoltre Apple blocca i cookie di terze parti (ITP) negli iframe, impedendo il login Google
+                // per le app ristrette al dominio "idroclima". Aprendo in '_blank' sincrono aggiriamo entrambi i problemi.
+                if (isIos() && !targetUrl.startsWith('native://')) {
+                    window.open(targetUrl, '_blank');
+                    return;
+                }
+
+                runAppTransition(card, () => {
+                    if (targetUrl === 'native://timbrature') {
+                        openTimbratureNative();
+                    } else if (targetUrl === 'native://procedure') {
+                        openDriveViewerNative('procedure', targetName);
+                    } else if (targetUrl === 'native://comunicazioni') {
+                        openDriveViewerNative('comunicazioni', targetName);
+                    } else {
+                        openAppInIframe(targetName, targetUrl);
+                    }
+                });
+            };
+        } else {
+            card.onclick = (e) => {
+                e.preventDefault();
+                alert(`Accesso non abilitato al profilo '${currentUser.profilo}' per questa App.`);
+            };
+        }
+
+        const iconClass = app.icona ? app.icona : 'fa-folder';
+        const iconColor = app.colore ? app.colore : 'var(--primary-color)';
+
+        let isImage = false;
+        const iconLower = iconClass.toLowerCase();
+        if (iconLower.startsWith('http') || iconLower.startsWith('data:img') || iconLower.startsWith('data:image') || iconLower.includes('.png') || iconLower.includes('.jpg') || iconLower.includes('.jpeg') || iconLower.includes('.svg') || iconLower.includes('.webp')) {
+            isImage = true;
+        }
+
+        if (isImage) {
+            let src = iconClass;
+            if (!src.startsWith('http') && !src.startsWith('data:')) {
+                src = `Prismi & Icone/${iconClass}`;
+            }
+             
+            card.innerHTML = `
+                <img src="${src}" style="width: 85px; height: 85px; object-fit: contain; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.5)); margin-bottom: 5px;" alt="${app.nome}">
+                <div class="app-title">${app.nome}</div>
+                ${!app.isAllowed ? '<div class="app-badge"><i class="fa-solid fa-lock"></i></div>' : ''}
+            `;
+        } else {
+            let iconContent = `<i class="${iconClass.includes('fa-') ? 'fa-solid ' + iconClass : 'fa-solid fa-folder'}"></i>`;
+            card.innerHTML = `
+                <div class="app-icon" style="background-color: ${iconColor};">
+                    ${iconContent}
+                </div>
+                <div class="app-title">${app.nome}</div>
+                ${!app.isAllowed ? '<div class="app-badge"><i class="fa-solid fa-lock"></i></div>' : ''}
+            `;
+        }
+
+        appsContainer.appendChild(card);
+    });
+
+    // Se admin, aggiungi card per config
+    if (currentUser.isAdmin === true || currentUser.isAdmin === 'TRUE' || currentUser.isAdmin === 'Vero') {
+        const adminCard = document.createElement('a');
+        adminCard.className = 'app-card';
+        adminCard.href = '#';
+        adminCard.onclick = (e) => {
+            e.preventDefault();
+            runAppTransition(adminCard, () => {
+                showAdminScreen();
+            });
+        };
+        adminCard.innerHTML = `
+            <div class="app-icon" style="background-color: #10b981;">
+                <i class="fa-solid fa-user-shield"></i>
+            </div>
+            <div class="app-title">Area Admin</div>
+        `;
+        appsContainer.appendChild(adminCard);
+    }
+}
+
+// Logica Transizione Premium
+function runAppTransition(sourceElement, callback) {
+    // 1. Prepara l'icona da clonare
+    const icon = sourceElement.querySelector('img') || sourceElement.querySelector('.app-icon');
+    if (!icon) {
+        callback();
+        return;
+    }
+
+    const rect = icon.getBoundingClientRect();
+    const clone = icon.cloneNode(true);
+    
+    // Cattura stili calcolati per coerenza (es. background-color)
+    const computedStyle = window.getComputedStyle(icon);
+    const bgColor = computedStyle.backgroundColor;
+
+    // Rimuovi stili inline che potrebbero interferire se presenti
+    clone.style.margin = '0';
+    clone.style.position = 'fixed';
+    clone.style.top = rect.top + 'px';
+    clone.style.left = rect.left + 'px';
+    clone.style.width = rect.width + 'px';
+    clone.style.height = rect.height + 'px';
+    
+    // Se è un'icona FA (div.app-icon), applica il colore originale
+    if (icon.classList.contains('app-icon')) {
+        clone.style.backgroundColor = bgColor;
+    }
+    
+    clone.classList.add('transition-clone');
+    
+    document.body.appendChild(clone);
+
+    // 2. Mostra l'overlay
+    transitionOverlay.classList.remove('hidden');
+    // Piccolo delay per permettere al browser di registrare la rimozione di hidden prima di opacity
+    setTimeout(() => transitionOverlay.classList.add('active'), 10);
+
+    // 3. Sequenza Animazioni (Totale ~3 secondi)
+    // Step A: Sposta al centro
+    setTimeout(() => {
+        clone.classList.add('moving');
+    }, 50);
+
+    // Step B: Ruota su se stesso
+    setTimeout(() => {
+        clone.classList.add('spinning');
+    }, 850);
+
+    // Step C: Zoom finale ed esecuzione callback (cambio schermata)
+    setTimeout(() => {
+        clone.classList.add('zooming');
+        callback();
+    }, 2100);
+
+    // Step D: Pulizia e chiusura overlay
+    setTimeout(() => {
+        transitionOverlay.classList.remove('active');
+        setTimeout(() => {
             transitionOverlay.classList.add('hidden');
             clone.remove();
         }, 600);
@@ -396,18 +591,36 @@ function openAppInIframe(nome, url) {
 
     const wrapper = appIframe.parentElement;
     
-    // Comportamento standard per tutte le app
+    // Fix definitivo per visualizzazione nativa (Cruscotto Tecnico e altre app)
+    // Rimuoviamo l'hack 'width: 1px' che causa problemi di scaling su iOS Safari 
+    // per interfacce con unità fluide o font scalati.
     wrapper.style.overflow = 'hidden';
-    appIframe.style.width = '1px';
-    appIframe.style.minWidth = '100%';
+    wrapper.style.position = 'relative';
+    wrapper.style.webkitOverflowScrolling = 'touch';
+    appIframe.style.position = 'absolute';
+    appIframe.style.top = '0';
+    appIframe.style.left = '0';
+    appIframe.style.width = '100%';
+    appIframe.style.height = '100%';
+    appIframe.style.minWidth = '';
     appIframe.style.maxWidth = '';
+    appIframe.style.border = 'none';
     appIframe.removeAttribute('scrolling');
 }
 
 btnCloseIframe.addEventListener('click', () => {
-    document.body.style.overflow = '';
     iframeScreen.classList.add('hidden');
     appIframe.src = ''; // Svuota per fermare processi in background
+    iframeScreen.style.zIndex = ''; // Ripristina z-index se modificato
+
+    // Ripristina lo scroll solo se non ci sono altre modali full-screen attive
+    if (document.getElementById('drive-viewer-screen').classList.contains('hidden') && 
+        document.getElementById('timbrature-screen').classList.contains('hidden') &&
+        document.getElementById('admin-screen').classList.contains('hidden')) {
+        document.body.style.overflow = '';
+    } else {
+        document.body.style.overflow = 'hidden';
+    }
 });
 
 // ================= TIMBRATURE NATIVE LOGIC =================
@@ -1161,9 +1374,9 @@ function renderDriveFiles(files) {
                         '<i class="fa-solid fa-tags"></i> Keyword' +
                     '</button>' : ''
                 }
-                <a href="${file.url}" target="_blank" class="btn-primary-small" style="padding: 6px 12px; text-decoration: none;">
+                <button onclick="openDriveFile('${file.url}', '${file.name.replace(/'/g, "\\'")}')" class="btn-primary-small" style="padding: 6px 12px;">
                     <i class="fa-solid fa-eye"></i> Apri
-                </a>
+                </button>
             </div>
         `;
         
@@ -1320,3 +1533,17 @@ if (btnSaveKeywords) {
         }
     });
 }
+
+// Funzione globale per aprire i file Drive nativamente nell'iframe del portale
+window.openDriveFile = function(url, title) {
+    if (!url) return;
+    let finalUrl = url;
+    // Converte il link di visualizzazione Drive in preview per permettere l'embed nell'iframe
+    if (finalUrl.includes('drive.google.com/file/d/') && finalUrl.includes('/view')) {
+        finalUrl = finalUrl.replace(/\/view.*$/, '/preview');
+    }
+    
+    // Aumenta temporaneamente lo z-index dell'iframeScreen per portarlo sopra al drive-viewer-screen
+    iframeScreen.style.zIndex = '3000';
+    openAppInIframe(title || 'Documento', finalUrl);
+};
