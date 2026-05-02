@@ -1,4 +1,4 @@
-const CACHE_NAME = 'portale-aziendale-v12';
+const CACHE_NAME = 'portale-aziendale-v13';
 const ASSETS_TO_CACHE = [
     './',
     './index.html',
@@ -6,42 +6,68 @@ const ASSETS_TO_CACHE = [
     './app.js',
     './manifest.json',
     './idroclima-app-192.png',
-    './idroclima-drop-48.png',
-    'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css',
-    'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap'
+    './idroclima-app-512.png',
+    './idroclima-drop-48.png'
 ];
 
 self.addEventListener('install', (evt) => {
     evt.waitUntil(
-        caches.open(CACHE_NAME).then((cache) => {
-            return cache.addAll(ASSETS_TO_CACHE);
-        })
+        caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS_TO_CACHE))
     );
     self.skipWaiting();
 });
 
 self.addEventListener('activate', (evt) => {
     evt.waitUntil(
-        caches.keys().then((keyList) => {
-            return Promise.all(keyList.map((key) => {
-                if (key !== CACHE_NAME) {
-                    return caches.delete(key);
-                }
-            }));
-        })
+        caches.keys().then((keyList) => Promise.all(
+            keyList.map((key) => key !== CACHE_NAME ? caches.delete(key) : undefined)
+        ))
     );
     self.clients.claim();
 });
 
 self.addEventListener('fetch', (evt) => {
-    // Non far caching per le chiamate API del backend script.google.com
-    if (evt.request.url.includes('script.google.com')) {
+    const requestUrl = new URL(evt.request.url);
+
+    if (requestUrl.hostname.includes('script.google.com') || requestUrl.hostname.includes('googleusercontent.com')) {
+        return;
+    }
+
+    if (evt.request.method !== 'GET') {
+        return;
+    }
+
+    const isLocalAsset = requestUrl.origin === self.location.origin;
+    const isFreshAsset = isLocalAsset && (
+        evt.request.mode === 'navigate' ||
+        requestUrl.pathname.endsWith('.html') ||
+        requestUrl.pathname.endsWith('.js') ||
+        requestUrl.pathname.endsWith('.css') ||
+        requestUrl.pathname.endsWith('manifest.json')
+    );
+
+    if (isFreshAsset) {
+        evt.respondWith(
+            fetch(evt.request)
+                .then((networkResponse) => {
+                    const responseCopy = networkResponse.clone();
+                    caches.open(CACHE_NAME).then((cache) => cache.put(evt.request, responseCopy));
+                    return networkResponse;
+                })
+                .catch(() => caches.match(evt.request))
+        );
         return;
     }
 
     evt.respondWith(
         caches.match(evt.request).then((cachedResponse) => {
-            return cachedResponse || fetch(evt.request);
+            return cachedResponse || fetch(evt.request).then((networkResponse) => {
+                if (isLocalAsset) {
+                    const responseCopy = networkResponse.clone();
+                    caches.open(CACHE_NAME).then((cache) => cache.put(evt.request, responseCopy));
+                }
+                return networkResponse;
+            });
         })
     );
 });

@@ -62,14 +62,17 @@ let deferredPrompt;
 // Aiuto per Installazione iOS (Apple Safari)
 const isIos = () => {
   const userAgent = window.navigator.userAgent.toLowerCase();
-  return /iphone|ipad|ipod/.test( userAgent );
-}
-const isInStandaloneMode = () => ('standalone' in window.navigator) && (window.navigator.standalone);
+  const iPadOsDesktopMode = userAgent.includes('macintosh') && navigator.maxTouchPoints > 1;
+  return /iphone|ipad|ipod/.test(userAgent) || iPadOsDesktopMode;
+};
+const isMobileBrowser = () => /android|iphone|ipad|ipod/i.test(window.navigator.userAgent) || navigator.maxTouchPoints > 1;
+const isInStandaloneMode = () => window.matchMedia('(display-mode: standalone)').matches || (('standalone' in window.navigator) && window.navigator.standalone);
 
-if (isIos() && !isInStandaloneMode()) {
-    // Forza la visibilità del tasto installa per Apple
+if (btnInstall && isMobileBrowser() && !isInStandaloneMode()) {
     btnInstall.classList.remove('hidden');
-    btnInstall.innerHTML = '<i class="fa-brands fa-apple"></i> Setup su iPhone/iPad';
+    btnInstall.innerHTML = isIos()
+        ? '<i class="fa-brands fa-apple"></i> Setup su iPhone/iPad'
+        : '<i class="fa-solid fa-download"></i> Installa App';
 }
 
 window.addEventListener('beforeinstallprompt', (e) => {
@@ -77,7 +80,7 @@ window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     deferredPrompt = e;
     // Mostra il pulsante di installazione (ambiente Android/PC)
-    btnInstall.classList.remove('hidden');
+    if (btnInstall) btnInstall.classList.remove('hidden');
 });
 
 btnInstall.addEventListener('click', async () => {
@@ -95,13 +98,18 @@ btnInstall.addEventListener('click', async () => {
         }
         deferredPrompt = null;
         btnInstall.classList.add('hidden');
+    } else if (!isIos()) {
+        alert("Per installare l'app:\n\n1. Apri il menu del browser.\n2. Tocca 'Installa app' oppure 'Aggiungi a schermata Home'.\n\nSe il pulsante non compare nel menu, ricarica la pagina dopo qualche secondo.");
     }
 });
 
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         navigator.serviceWorker.register('sw.js')
-            .then(reg => console.log('Service Worker registrato', reg))
+            .then(reg => {
+                console.log('Service Worker registrato', reg);
+                reg.update();
+            })
             .catch(err => console.error('Errore Service Worker', err));
     });
 }
@@ -184,208 +192,6 @@ loginForm.addEventListener('submit', async (e) => {
         setLoading(false);
     }
 });
-
-// Gestione Logout
-btnLogout.addEventListener('click', () => {
-    localStorage.removeItem('portale_session');
-    currentUser = null;
-    showLoginScreen();
-});
-
-// Caricamento App
-async function loadApps() {
-    appsContainer.innerHTML = '';
-    loadingApps.classList.remove('hidden');
-
-    try {
-        const response = await fetch(API_URL, {
-            method: 'POST',
-            body: JSON.stringify({
-                action: 'GET_USER_DATA',
-                userId: currentUser.id || currentUser.ID_UTENTE
-            })
-        });
-
-        const data = await response.json();
-
-        if (data.status === 'success') {
-            renderApps(data.apps);
-        } else {
-            alert("Errore nel caricamento delle app: " + data.message);
-        }
-    } catch (error) {
-        console.error("Errore fetch app:", error);
-        alert("Errore di rete durante il caricamento delle app.");
-    } finally {
-        loadingApps.classList.add('hidden');
-    }
-}
-
-function renderApps(apps) {
-    if (apps.length === 0) {
-        appsContainer.innerHTML = '<p style="grid-column: 1/-1; text-align: center; color: var(--text-muted);">Nessuna applicazione disponibile.</p>';
-        return;
-    }
-
-    apps.forEach(app => {
-        if (!app.isAllowed) return; // L'admin ha chiesto di nasconderle completamente
-
-        const card = document.createElement('a');
-        card.className = 'app-card';
-        card.href = '#';
-
-        if (app.isAllowed) {
-            card.onclick = (e) => {
-                e.preventDefault();
-                const targetUrl = app.link;
-                const targetName = app.nome;
-                
-                // FIX per iOS: Apple blocca i popup (window.open) se aperti in modo asincrono (dopo l'animazione).
-                // Inoltre Apple blocca i cookie di terze parti (ITP) negli iframe, impedendo il login Google
-                // per le app ristrette al dominio "idroclima". Aprendo in '_blank' sincrono aggiriamo entrambi i problemi.
-                if (isIos() && !targetUrl.startsWith('native://')) {
-                    window.open(targetUrl, '_blank');
-                    return;
-                }
-
-                runAppTransition(card, () => {
-                    if (targetUrl === 'native://timbrature') {
-                        openTimbratureNative();
-                    } else if (targetUrl === 'native://procedure') {
-                        openDriveViewerNative('procedure', targetName);
-                    } else if (targetUrl === 'native://comunicazioni') {
-                        openDriveViewerNative('comunicazioni', targetName);
-                    } else {
-                        openAppInIframe(targetName, targetUrl);
-                    }
-                });
-            };
-        } else {
-            card.onclick = (e) => {
-                e.preventDefault();
-                alert(`Accesso non abilitato al profilo '${currentUser.profilo}' per questa App.`);
-            };
-        }
-
-        const iconClass = app.icona ? app.icona : 'fa-folder';
-        const iconColor = app.colore ? app.colore : 'var(--primary-color)';
-
-        let isImage = false;
-        const iconLower = iconClass.toLowerCase();
-        if (iconLower.startsWith('http') || iconLower.startsWith('data:img') || iconLower.startsWith('data:image') || iconLower.includes('.png') || iconLower.includes('.jpg') || iconLower.includes('.jpeg') || iconLower.includes('.svg') || iconLower.includes('.webp')) {
-            isImage = true;
-        }
-
-        if (isImage) {
-            let src = iconClass;
-            if (!src.startsWith('http') && !src.startsWith('data:')) {
-                src = `Prismi & Icone/${iconClass}`;
-            }
-             
-            card.innerHTML = `
-                <img src="${src}" style="width: 85px; height: 85px; object-fit: contain; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.5)); margin-bottom: 5px;" alt="${app.nome}">
-                <div class="app-title">${app.nome}</div>
-                ${!app.isAllowed ? '<div class="app-badge"><i class="fa-solid fa-lock"></i></div>' : ''}
-            `;
-        } else {
-            let iconContent = `<i class="${iconClass.includes('fa-') ? 'fa-solid ' + iconClass : 'fa-solid fa-folder'}"></i>`;
-            card.innerHTML = `
-                <div class="app-icon" style="background-color: ${iconColor};">
-                    ${iconContent}
-                </div>
-                <div class="app-title">${app.nome}</div>
-                ${!app.isAllowed ? '<div class="app-badge"><i class="fa-solid fa-lock"></i></div>' : ''}
-            `;
-        }
-
-        appsContainer.appendChild(card);
-    });
-
-    // Se admin, aggiungi card per config
-    if (currentUser.isAdmin === true || currentUser.isAdmin === 'TRUE' || currentUser.isAdmin === 'Vero') {
-        const adminCard = document.createElement('a');
-        adminCard.className = 'app-card';
-        adminCard.href = '#';
-        adminCard.onclick = (e) => {
-            e.preventDefault();
-            runAppTransition(adminCard, () => {
-                showAdminScreen();
-            });
-        };
-        adminCard.innerHTML = `
-            <div class="app-icon" style="background-color: #10b981;">
-                <i class="fa-solid fa-user-shield"></i>
-            </div>
-            <div class="app-title">Area Admin</div>
-        `;
-        appsContainer.appendChild(adminCard);
-    }
-}
-
-// Logica Transizione Premium
-function runAppTransition(sourceElement, callback) {
-    // 1. Prepara l'icona da clonare
-    const icon = sourceElement.querySelector('img') || sourceElement.querySelector('.app-icon');
-    if (!icon) {
-        callback();
-        return;
-    }
-
-    const rect = icon.getBoundingClientRect();
-    const clone = icon.cloneNode(true);
-    
-    // Cattura stili calcolati per coerenza (es. background-color)
-    const computedStyle = window.getComputedStyle(icon);
-    const bgColor = computedStyle.backgroundColor;
-
-    // Rimuovi stili inline che potrebbero interferire se presenti
-    clone.style.margin = '0';
-    clone.style.position = 'fixed';
-    clone.style.top = rect.top + 'px';
-    clone.style.left = rect.left + 'px';
-    clone.style.width = rect.width + 'px';
-    clone.style.height = rect.height + 'px';
-    
-    // Se è un'icona FA (div.app-icon), applica il colore originale
-    if (icon.classList.contains('app-icon')) {
-        clone.style.backgroundColor = bgColor;
-    }
-    
-    clone.classList.add('transition-clone');
-    
-    document.body.appendChild(clone);
-
-    // 2. Mostra l'overlay
-    transitionOverlay.classList.remove('hidden');
-    // Piccolo delay per permettere al browser di registrare la rimozione di hidden prima di opacity
-    setTimeout(() => transitionOverlay.classList.add('active'), 10);
-
-    // 3. Sequenza Animazioni (Totale ~3 secondi)
-    // Step A: Sposta al centro
-    setTimeout(() => {
-        clone.classList.add('moving');
-    }, 50);
-
-    // Step B: Ruota su se stesso
-    setTimeout(() => {
-        clone.classList.add('spinning');
-    }, 850);
-
-    // Step C: Zoom finale ed esecuzione callback (cambio schermata)
-    setTimeout(() => {
-        clone.classList.add('zooming');
-        callback();
-    }, 2100);
-
-    // Step D: Pulizia e chiusura overlay
-    setTimeout(() => {
-        transitionOverlay.classList.remove('active');
-        setTimeout(() => {
-            transitionOverlay.classList.add('hidden');
-            clone.remove();
-        }, 600);
-    }, 3200);
-}
 
 btnLogout.addEventListener('click', () => {
     localStorage.removeItem('portale_session');
@@ -634,12 +440,15 @@ btnCloseIframe.addEventListener('click', () => {
 const timbratureScreen = document.getElementById('timbrature-screen');
 const btnCloseTimbrature = document.getElementById('btn-close-timbrature');
 const timbratureLoading = document.getElementById('timbrature-loading');
-const timbratureResult = document.getElementById('timbrature-result');
+const timbratureResult = document.getElementById('timbrature-body');
+const timbratureError = document.getElementById('timbrature-error');
 
 function openTimbratureNative() {
     document.body.style.overflow = 'hidden';
     timbratureScreen.classList.remove('hidden');
     timbratureLoading.classList.remove('hidden');
+    timbratureError.classList.add('hidden');
+    timbratureError.textContent = '';
     timbratureResult.classList.add('hidden');
     timbratureResult.innerHTML = '';
     
@@ -668,14 +477,14 @@ async function fetchMyTimbrature() {
         if (data.status === 'success') {
             renderTimbrature(data);
         } else {
-            timbratureResult.innerHTML = `<div class="error-msg" style="display:block;">${data.message || 'Errore nel recupero delle timbrature.'}</div>`;
+            timbratureError.textContent = data.message || 'Errore nel recupero delle timbrature.';
             timbratureLoading.classList.add('hidden');
-            timbratureResult.classList.remove('hidden');
+            timbratureError.classList.remove('hidden');
         }
     } catch (error) {
-        timbratureResult.innerHTML = `<div class="error-msg" style="display:block;">Errore di rete. Impossibile connettersi al server.</div>`;
+        timbratureError.textContent = 'Errore di rete. Impossibile connettersi al server.';
         timbratureLoading.classList.add('hidden');
-        timbratureResult.classList.remove('hidden');
+        timbratureError.classList.remove('hidden');
     }
 }
 
@@ -787,7 +596,11 @@ async function loadAdminData() {
     try {
         const response = await fetch(API_URL, {
             method: 'POST',
-            body: JSON.stringify({ action: 'GET_ADMIN_DATA', profile: currentUser.profilo })
+            body: JSON.stringify({
+                action: 'GET_ADMIN_DATA',
+                adminUserId: currentUser.id || currentUser.ID_UTENTE,
+                profile: currentUser.profilo
+            })
         });
         const data = await response.json();
 
@@ -1225,6 +1038,7 @@ btnAdminSave.addEventListener('click', async () => {
             method: 'POST',
             body: JSON.stringify({
                 action: 'SAVE_ADMIN_DATA',
+                adminUserId: currentUser.id || currentUser.ID_UTENTE,
                 utenti_aggiornati: adminData.utenti,
                 apps_aggiornate: adminData.apps,
                 profili_aggiornati: adminData.profili,
