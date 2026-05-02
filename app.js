@@ -142,6 +142,22 @@ function showHomeScreen() {
     loadApps();
 }
 
+function hideHomeForFullscreenView() {
+    homeScreen.classList.add('hidden');
+}
+
+function restoreHomeAfterFullscreenView() {
+    const fullscreenViewsClosed =
+        iframeScreen.classList.contains('hidden') &&
+        document.getElementById('drive-viewer-screen').classList.contains('hidden') &&
+        document.getElementById('timbrature-screen').classList.contains('hidden') &&
+        adminScreen.classList.contains('hidden');
+
+    if (currentUser && loginScreen.classList.contains('hidden') && fullscreenViewsClosed) {
+        homeScreen.classList.remove('hidden');
+    }
+}
+
 function setLoading(isLoading) {
     if (isLoading) {
         loginText.classList.add('hidden');
@@ -398,6 +414,7 @@ function runAppTransition(sourceElement, callback) {
 function openAppInIframe(nome, url, appId = '') {
     const isTechnicalApp = /tecnico|cruscotto/i.test(`${nome || ''} ${url || ''} ${appId || ''}`);
     document.body.style.overflow = 'hidden';
+    hideHomeForFullscreenView();
     iframeTitle.textContent = nome;
     iframeScreen.classList.toggle('iframe-technical-mode', isTechnicalApp);
     iframeScreen.classList.remove('hidden');
@@ -410,7 +427,6 @@ function openAppInIframe(nome, url, appId = '') {
     appIframe.style.position = 'absolute';
     appIframe.style.top = '0';
     appIframe.style.left = '0';
-    appIframe.style.height = '100%';
     appIframe.style.border = '0';
     appIframe.style.outline = '0';
     appIframe.style.margin = '0';
@@ -418,19 +434,29 @@ function openAppInIframe(nome, url, appId = '') {
     appIframe.style.display = 'block';
     appIframe.style.boxSizing = 'border-box';
     appIframe.style.background = 'transparent';
-    appIframe.style.transform = 'translateZ(0)';
+    appIframe.style.transformOrigin = '0 0';
 
-    if (isTechnicalApp || isIos()) {
-        // Safari mobile calcola spesso male il viewport degli iframe a width:100%.
-        // Questa combinazione mantiene il documento interno alla larghezza reale del telefono.
+    if (isTechnicalApp) {
+        const scale = 0.72;
+        appIframe.style.width = `${100 / scale}%`;
+        appIframe.style.height = `${100 / scale}%`;
+        appIframe.style.minWidth = '';
+        appIframe.style.maxWidth = '';
+        appIframe.style.transform = `scale(${scale}) translateZ(0)`;
+        appIframe.setAttribute('scrolling', 'yes');
+    } else if (isIos()) {
         appIframe.style.width = '1px';
+        appIframe.style.height = '100%';
         appIframe.style.minWidth = '100%';
         appIframe.style.maxWidth = '100%';
+        appIframe.style.transform = 'translateZ(0)';
         appIframe.setAttribute('scrolling', 'yes');
     } else {
         appIframe.style.width = '100%';
+        appIframe.style.height = '100%';
         appIframe.style.minWidth = '';
         appIframe.style.maxWidth = '';
+        appIframe.style.transform = 'translateZ(0)';
         appIframe.removeAttribute('scrolling');
     }
 
@@ -451,6 +477,7 @@ btnCloseIframe.addEventListener('click', () => {
     } else {
         document.body.style.overflow = 'hidden';
     }
+    restoreHomeAfterFullscreenView();
 });
 
 // ================= TIMBRATURE NATIVE LOGIC =================
@@ -463,6 +490,7 @@ const timbratureError = document.getElementById('timbrature-error');
 
 function openTimbratureNative() {
     document.body.style.overflow = 'hidden';
+    hideHomeForFullscreenView();
     timbratureScreen.classList.remove('hidden');
     timbratureLoading.classList.remove('hidden');
     timbratureError.classList.add('hidden');
@@ -477,6 +505,7 @@ if (btnCloseTimbrature) {
     btnCloseTimbrature.addEventListener('click', () => {
         document.body.style.overflow = '';
         timbratureScreen.classList.add('hidden');
+        restoreHomeAfterFullscreenView();
     });
 }
 
@@ -1106,6 +1135,7 @@ let currentEditingKeywords = [];
 
 function openDriveViewerNative(type, title) {
     document.body.style.overflow = 'hidden';
+    hideHomeForFullscreenView();
     driveViewerScreen.classList.remove('hidden');
     driveViewerLoading.classList.remove('hidden');
     driveViewerError.classList.add('hidden');
@@ -1132,6 +1162,7 @@ if (btnCloseDriveViewer) {
     btnCloseDriveViewer.addEventListener('click', () => {
         document.body.style.overflow = '';
         driveViewerScreen.classList.add('hidden');
+        restoreHomeAfterFullscreenView();
     });
 }
 

@@ -90,6 +90,10 @@ body {
     -webkit-overflow-scrolling: touch !important;
 }
 
+#iframe-screen.iframe-technical-mode #app-iframe {
+    transform-origin: 0 0 !important;
+}
+
 .glass {
     background: var(--card-bg);
     backdrop-filter: blur(16px);
