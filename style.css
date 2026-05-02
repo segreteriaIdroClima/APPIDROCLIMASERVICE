@@ -32,6 +32,12 @@ body {
     display: none !important;
 }
 
+body.fullscreen-active #home-screen {
+    display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+}
+
 .screen {
     flex: 1;
     display: flex;
@@ -44,6 +50,7 @@ body {
     background: #000 !important;
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
+    z-index: 100000 !important;
 }
 
 #iframe-screen.iframe-technical-mode #iframe-container {
@@ -88,10 +95,6 @@ body {
     height: 100% !important;
     overflow: auto !important;
     -webkit-overflow-scrolling: touch !important;
-}
-
-#iframe-screen.iframe-technical-mode #app-iframe {
-    transform-origin: 0 0 !important;
 }
 
 .glass {

@@ -93,9 +93,6 @@ btnInstall.addEventListener('click', async () => {
     if (deferredPrompt) {
         deferredPrompt.prompt();
         const { outcome } = await deferredPrompt.userChoice;
-        if (outcome === 'accepted') {
-            console.log('PWA Installata dal bottone!');
-        }
         deferredPrompt = null;
         btnInstall.classList.add('hidden');
     } else if (!isIos()) {
@@ -107,7 +104,6 @@ if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         navigator.serviceWorker.register('sw.js')
             .then(reg => {
-                console.log('Service Worker registrato', reg);
                 reg.update();
             })
             .catch(err => console.error('Errore Service Worker', err));
@@ -143,6 +139,7 @@ function showHomeScreen() {
 }
 
 function hideHomeForFullscreenView() {
+    document.body.classList.add('fullscreen-active');
     homeScreen.classList.add('hidden');
 }
 
@@ -154,7 +151,10 @@ function restoreHomeAfterFullscreenView() {
         adminScreen.classList.contains('hidden');
 
     if (currentUser && loginScreen.classList.contains('hidden') && fullscreenViewsClosed) {
+        document.body.classList.remove('fullscreen-active');
         homeScreen.classList.remove('hidden');
+    } else if (fullscreenViewsClosed) {
+        document.body.classList.remove('fullscreen-active');
     }
 }
 
@@ -436,15 +436,7 @@ function openAppInIframe(nome, url, appId = '') {
     appIframe.style.background = 'transparent';
     appIframe.style.transformOrigin = '0 0';
 
-    if (isTechnicalApp) {
-        const scale = 0.72;
-        appIframe.style.width = `${100 / scale}%`;
-        appIframe.style.height = `${100 / scale}%`;
-        appIframe.style.minWidth = '';
-        appIframe.style.maxWidth = '';
-        appIframe.style.transform = `scale(${scale}) translateZ(0)`;
-        appIframe.setAttribute('scrolling', 'yes');
-    } else if (isIos()) {
+    if (isTechnicalApp || isIos()) {
         appIframe.style.width = '1px';
         appIframe.style.height = '100%';
         appIframe.style.minWidth = '100%';
@@ -602,6 +594,7 @@ function renderTimbrature(data) {
 // ================= ADMIN DASHBOARD LOGIC =================
 
 function showAdminScreen() {
+    hideHomeForFullscreenView();
     homeScreen.classList.add('hidden');
     adminScreen.classList.remove('hidden');
     loadAdminData();
@@ -609,6 +602,7 @@ function showAdminScreen() {
 
 btnAdminBack.addEventListener('click', () => {
     adminScreen.classList.add('hidden');
+    document.body.classList.remove('fullscreen-active');
     homeScreen.classList.remove('hidden');
     loadApps(); // ricarica le app nel caso i permessi siano cambiati
 });
