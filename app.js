@@ -395,22 +395,13 @@ function openAppInIframe(nome, url) {
     iframeScreen.classList.remove('hidden');
 
     const wrapper = appIframe.parentElement;
-    if (nome.toLowerCase().includes('tecnico')) {
-        // Fix specifico per web app tecnico: abilita scroll morbido, forza limiti esatti
-        wrapper.style.overflowY = 'auto';
-        wrapper.style.overflowX = 'hidden';
-        appIframe.style.width = '100%';
-        appIframe.style.minWidth = '0';
-        appIframe.style.maxWidth = '100%';
-        appIframe.setAttribute('scrolling', 'yes');
-    } else {
-        // Comportamento standard per le altre app
-        wrapper.style.overflow = 'hidden';
-        appIframe.style.width = '1px';
-        appIframe.style.minWidth = '100%';
-        appIframe.style.maxWidth = '';
-        appIframe.removeAttribute('scrolling');
-    }
+    
+    // Comportamento standard per tutte le app
+    wrapper.style.overflow = 'hidden';
+    appIframe.style.width = '1px';
+    appIframe.style.minWidth = '100%';
+    appIframe.style.maxWidth = '';
+    appIframe.removeAttribute('scrolling');
 }
 
 btnCloseIframe.addEventListener('click', () => {
