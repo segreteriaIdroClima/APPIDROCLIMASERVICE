@@ -381,6 +381,12 @@ function runAppTransition(sourceElement, callback) {
     setTimeout(() => {
         transitionOverlay.classList.remove('active');
         setTimeout(() => {
+            transitionOverlay.classList.add('hidden');
+            clone.remove();
+        }, 600);
+    }, 3200);
+}
+
 btnLogout.addEventListener('click', () => {
     localStorage.removeItem('portale_session');
     currentUser = null;
@@ -1547,3 +1553,4 @@ window.openDriveFile = function(url, title) {
     iframeScreen.style.zIndex = '3000';
     openAppInIframe(title || 'Documento', finalUrl);
 };
+
