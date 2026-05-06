@@ -61,9 +61,9 @@ let deferredPrompt;
 
 // Aiuto per Installazione iOS (Apple Safari)
 const isIos = () => {
-  const userAgent = window.navigator.userAgent.toLowerCase();
-  const iPadOsDesktopMode = userAgent.includes('macintosh') && navigator.maxTouchPoints > 1;
-  return /iphone|ipad|ipod/.test(userAgent) || iPadOsDesktopMode;
+    const userAgent = window.navigator.userAgent.toLowerCase();
+    const iPadOsDesktopMode = userAgent.includes('macintosh') && navigator.maxTouchPoints > 1;
+    return /iphone|ipad|ipod/.test(userAgent) || iPadOsDesktopMode;
 };
 const isMobileBrowser = () => /android|iphone|ipad|ipod/i.test(window.navigator.userAgent) || navigator.maxTouchPoints > 1;
 const isInStandaloneMode = () => window.matchMedia('(display-mode: standalone)').matches || (('standalone' in window.navigator) && window.navigator.standalone);
@@ -262,7 +262,7 @@ function renderApps(apps) {
                 e.preventDefault();
                 const targetUrl = app.link;
                 const targetName = app.nome;
-                
+
                 // FIX per iOS: Apple blocca i popup (window.open) se aperti in modo asincrono (dopo l'animazione).
                 // Inoltre Apple blocca i cookie di terze parti (ITP) negli iframe, impedendo il login Google
                 // per le app ristrette al dominio "idroclima". Aprendo in '_blank' sincrono aggiriamo entrambi i problemi.
@@ -304,7 +304,7 @@ function renderApps(apps) {
             if (!src.startsWith('http') && !src.startsWith('data:')) {
                 src = `Prismi & Icone/${iconClass}`;
             }
-             
+
             card.innerHTML = `
                 <img src="${src}" style="width: 85px; height: 85px; object-fit: contain; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.5)); margin-bottom: 5px;" alt="${app.nome}">
                 <div class="app-title">${app.nome}</div>
@@ -356,7 +356,7 @@ function runAppTransition(sourceElement, callback) {
 
     const rect = icon.getBoundingClientRect();
     const clone = icon.cloneNode(true);
-    
+
     // Cattura stili calcolati per coerenza (es. background-color)
     const computedStyle = window.getComputedStyle(icon);
     const bgColor = computedStyle.backgroundColor;
@@ -368,14 +368,14 @@ function runAppTransition(sourceElement, callback) {
     clone.style.left = rect.left + 'px';
     clone.style.width = rect.width + 'px';
     clone.style.height = rect.height + 'px';
-    
+
     // Se è un'icona FA (div.app-icon), applica il colore originale
     if (icon.classList.contains('app-icon')) {
         clone.style.backgroundColor = bgColor;
     }
-    
+
     clone.classList.add('transition-clone');
-    
+
     document.body.appendChild(clone);
 
     // 2. Mostra l'overlay
@@ -418,11 +418,28 @@ function openAppInIframe(nome, url, appId = '') {
     iframeTitle.textContent = nome;
     iframeScreen.classList.toggle('iframe-technical-mode', isTechnicalApp);
     iframeScreen.classList.remove('hidden');
+    iframeScreen.style.width = '100vw';
+    iframeScreen.style.height = '100dvh';
+    iframeScreen.style.position = 'fixed';
+    iframeScreen.style.inset = '0';
+    iframeScreen.style.overflow = 'hidden';
+
+    const iframeContainer = document.getElementById('iframe-container');
+    if (iframeContainer) {
+        iframeContainer.style.width = '100vw';
+        iframeContainer.style.height = '100dvh';
+        iframeContainer.style.maxWidth = '100vw';
+        iframeContainer.style.maxHeight = '100dvh';
+        iframeContainer.style.overflow = 'hidden';
+    }
 
     const wrapper = appIframe.parentElement;
-    wrapper.style.overflow = isTechnicalApp ? 'auto' : 'hidden';
+    wrapper.style.overflow = 'hidden';
     wrapper.style.position = 'relative';
     wrapper.style.webkitOverflowScrolling = 'touch';
+    wrapper.style.width = '100%';
+    wrapper.style.height = '100%';
+    wrapper.style.minWidth = '0';
 
     appIframe.style.position = 'absolute';
     appIframe.style.top = '0';
@@ -436,21 +453,13 @@ function openAppInIframe(nome, url, appId = '') {
     appIframe.style.background = 'transparent';
     appIframe.style.transformOrigin = '0 0';
 
-    if (isTechnicalApp || isIos()) {
-        appIframe.style.width = '1px';
-        appIframe.style.height = '100%';
-        appIframe.style.minWidth = '100%';
-        appIframe.style.maxWidth = '100%';
-        appIframe.style.transform = 'translateZ(0)';
-        appIframe.setAttribute('scrolling', 'yes');
-    } else {
-        appIframe.style.width = '100%';
-        appIframe.style.height = '100%';
-        appIframe.style.minWidth = '';
-        appIframe.style.maxWidth = '';
-        appIframe.style.transform = 'translateZ(0)';
-        appIframe.removeAttribute('scrolling');
-    }
+    appIframe.style.width = '100%';
+    appIframe.style.height = '100%';
+    appIframe.style.minWidth = '0';
+    appIframe.style.maxWidth = '100%';
+    appIframe.style.transform = 'none';
+    appIframe.style.zoom = '1';
+    appIframe.setAttribute('scrolling', 'yes');
 
     appIframe.src = url;
 }
@@ -462,7 +471,7 @@ btnCloseIframe.addEventListener('click', () => {
     iframeScreen.classList.remove('iframe-technical-mode');
 
     // Ripristina lo scroll solo se non ci sono altre modali full-screen attive
-    if (document.getElementById('drive-viewer-screen').classList.contains('hidden') && 
+    if (document.getElementById('drive-viewer-screen').classList.contains('hidden') &&
         document.getElementById('timbrature-screen').classList.contains('hidden') &&
         document.getElementById('admin-screen').classList.contains('hidden')) {
         document.body.style.overflow = '';
@@ -489,7 +498,7 @@ function openTimbratureNative() {
     timbratureError.textContent = '';
     timbratureResult.classList.add('hidden');
     timbratureResult.innerHTML = '';
-    
+
     fetchMyTimbrature();
 }
 
@@ -542,36 +551,36 @@ function renderTimbrature(data) {
                 </thead>
                 <tbody>
                     ${data.giorni.map(g => {
-                        let pausaLabel = '-';
-                        if (g.stamps.length > 0) {
-                            if (g.pauseMin === 60) pausaLabel = '1h';
-                            else if (g.pauseMin > 0) pausaLabel = g.pauseMin + ' min';
-                            else pausaLabel = '0 min';
-                            
-                            if (g.pauseType === 'timbrata') {
-                                pausaLabel += ' <small style="display:block; font-size:10px; color:#10b981;">(Timbrata)</small>';
-                            } else {
-                                pausaLabel += ' <small style="display:block; font-size:10px; color:#94a3b8;">(Offset)</small>';
-                            }
-                        }
+        let pausaLabel = '-';
+        if (g.stamps.length > 0) {
+            if (g.pauseMin === 60) pausaLabel = '1h';
+            else if (g.pauseMin > 0) pausaLabel = g.pauseMin + ' min';
+            else pausaLabel = '0 min';
 
-                        let stampsLabel = '-';
-                        if (g.stamps.length > 0) {
-                            if (g.stamps.length === 1) {
-                                stampsLabel = `Ing: <span style="color:#10b981;">${g.stamps[0]}</span>`;
-                            } else if (g.stamps.length >= 2) {
-                                let ing = g.stamps[0];
-                                let usc = g.stamps[g.stamps.length - 1];
-                                stampsLabel = `<div style="display:flex; flex-direction:column; gap:2px;">
+            if (g.pauseType === 'timbrata') {
+                pausaLabel += ' <small style="display:block; font-size:10px; color:#10b981;">(Timbrata)</small>';
+            } else {
+                pausaLabel += ' <small style="display:block; font-size:10px; color:#94a3b8;">(Offset)</small>';
+            }
+        }
+
+        let stampsLabel = '-';
+        if (g.stamps.length > 0) {
+            if (g.stamps.length === 1) {
+                stampsLabel = `Ing: <span style="color:#10b981;">${g.stamps[0]}</span>`;
+            } else if (g.stamps.length >= 2) {
+                let ing = g.stamps[0];
+                let usc = g.stamps[g.stamps.length - 1];
+                stampsLabel = `<div style="display:flex; flex-direction:column; gap:2px;">
                                     <div>Ing: <span style="color:#10b981;">${ing}</span> | Usc: <span style="color:#ef4444;">${usc}</span></div>
                                 </div>`;
-                            }
-                            if (g.stamps.length > 2) {
-                                stampsLabel += `<div style="font-size:10px; color:var(--text-muted); margin-top:2px;">Tutte: ${g.stamps.join(' - ')}</div>`;
-                            }
-                        }
+            }
+            if (g.stamps.length > 2) {
+                stampsLabel += `<div style="font-size:10px; color:var(--text-muted); margin-top:2px;">Tutte: ${g.stamps.join(' - ')}</div>`;
+            }
+        }
 
-                        return `
+        return `
                         <tr>
                             <td><strong>${g.key.split('/')[0]}/${g.key.split('/')[1]}</strong></td>
                             <td style="font-family:monospace; font-size:13px; color: white;">
@@ -580,12 +589,12 @@ function renderTimbrature(data) {
                             <td style="font-size: 13px; color: #f59e0b;">${pausaLabel}</td>
                         </tr>
                         `;
-                    }).join('')}
+    }).join('')}
                 </tbody>
             </table>
         </div>
     `;
-    
+
     timbratureResult.innerHTML = tableHTML;
     timbratureLoading.classList.add('hidden');
     timbratureResult.classList.remove('hidden');
@@ -672,7 +681,7 @@ function renderAdminDashboard() {
     renderAppsAdmin();
     renderGruppi();
     renderPermessi();
-    
+
     // Aggiungi pulsante per monitoraggio in fondo all'admin dashboard
     if (!document.getElementById('btn-open-monitor')) {
         const adminDashboard = document.querySelector('.admin-dashboard');
@@ -751,7 +760,7 @@ function renderMonitorDashboard(data) {
     // Email Quota
     const emailBar = document.getElementById('quota-email-bar');
     const emailText = document.getElementById('quota-email-text');
-    
+
     if (data.emailQuota === -1) {
         emailBar.style.width = '0%';
         emailText.textContent = "Permessi non concessi";
@@ -761,7 +770,7 @@ function renderMonitorDashboard(data) {
         const emailPerc = (emailUsed / 1500 * 100);
         emailBar.style.width = emailPerc + '%';
         emailText.textContent = `${emailUsed} / 1500`;
-        
+
         if (emailPerc >= 90) emailBar.className = 'quota-progress-fill critical';
         else if (emailPerc >= 70) emailBar.className = 'quota-progress-fill warning';
         else emailBar.className = 'quota-progress-fill';
@@ -770,16 +779,16 @@ function renderMonitorDashboard(data) {
     // App Table
     monitorBody.innerHTML = '';
     let totalErrors = 0;
-    
+
     data.apps.forEach(app => {
         const errCount = parseInt(app.ERRORI_7G || 0);
         const execCount = parseInt(app.ESECUZIONI_7G || 0);
         const errRate = parseFloat(app.ERROR_RATE || 0);
-        
+
         totalErrors += errCount;
 
         const tr = document.createElement('tr');
-        
+
         // Alert Color Coding per riga
         if (errRate >= 20 || errCount > 50) tr.className = 'table-row-critical';
         else if (errRate >= 10 || errCount > 20) tr.className = 'table-row-warning';
@@ -812,7 +821,7 @@ function renderMonitorDashboard(data) {
     const clampedHealth = Math.max(0, Math.min(100, healthPerc));
     hBar.style.width = clampedHealth + '%';
     document.getElementById('quota-health-text').textContent = `${clampedHealth}% Ok`;
-    
+
     if (clampedHealth <= 70) hBar.className = 'quota-progress-fill critical';
     else if (clampedHealth <= 85) hBar.className = 'quota-progress-fill warning';
     else hBar.className = 'quota-progress-fill';
@@ -877,7 +886,7 @@ function renderAppsAdmin() {
     // Genera la lista delle icone disponibili come menu a tendina/autocompletamento
     if (!document.getElementById('icone-list')) {
         const availableIcons = [
-            "CF.png", "CFR.png", "CH.png", "CTR.png", "ICSR.png", "ICSSquare.png", 
+            "CF.png", "CFR.png", "CH.png", "CTR.png", "ICSR.png", "ICSSquare.png",
             "IP.png", "IPR.png", "IS.png", "ISR.png", "SC.png", "SCR.png", "SF.png", "SFR.png",
             "fa-solid fa-list", "fa-solid fa-folder", "fa-solid fa-wrench", "fa-solid fa-user", "fa-solid fa-chart-line"
         ];
@@ -948,9 +957,9 @@ function updateGruppoData(e) {
     let idx = e.target.getAttribute('data-idx');
     let field = e.target.getAttribute('data-field');
     adminData.profili[idx][field] = e.target.value;
-    
+
     // Se modifichiamo ID di un gruppo, aggiorniamo i selettori degli utenti
-    if(field === 'ID_PROFILO') renderUtenti();
+    if (field === 'ID_PROFILO') renderUtenti();
 }
 
 window.removeGruppo = function (idx) {
@@ -961,7 +970,7 @@ window.removeGruppo = function (idx) {
     }
 };
 
-if(btnAddGroup) {
+if (btnAddGroup) {
     btnAddGroup.addEventListener('click', () => {
         adminData.profili.push({
             ID_PROFILO: 'NUOVO_GRUPPO', DESCRIZIONE: 'Descrizione'
@@ -1134,11 +1143,11 @@ function openDriveViewerNative(type, title) {
     driveViewerLoading.classList.remove('hidden');
     driveViewerError.classList.add('hidden');
     driveViewerList.innerHTML = '';
-    
+
     if (driveViewerSearch) {
         driveViewerSearch.value = '';
     }
-    
+
     currentDriveType = type;
     if (driveViewerTitle) driveViewerTitle.textContent = title;
     if (driveViewerIcon) {
@@ -1189,7 +1198,7 @@ async function fetchDriveFiles(type) {
 
 function renderDriveFiles(files) {
     driveViewerList.innerHTML = '';
-    
+
     if (files.length === 0) {
         driveViewerList.innerHTML = '<div style="text-align:center; padding: 20px; color: #94a3b8;">Nessun file trovato.</div>';
         return;
@@ -1232,17 +1241,17 @@ function renderDriveFiles(files) {
                 </div>
             </div>
             <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 5px;">
-                ${currentDriveType === 'procedure' && canEditProcedure ? 
-                    '<button class="btn-secondary-small btn-edit-kw" data-id="' + file.id + '" style="background: transparent; border: 1px solid #334155; color: #cbd5e1; padding: 6px 10px;">' +
-                        '<i class="fa-solid fa-tags"></i> Keyword' +
-                    '</button>' : ''
-                }
+                ${currentDriveType === 'procedure' && canEditProcedure ?
+                '<button class="btn-secondary-small btn-edit-kw" data-id="' + file.id + '" style="background: transparent; border: 1px solid #334155; color: #cbd5e1; padding: 6px 10px;">' +
+                '<i class="fa-solid fa-tags"></i> Keyword' +
+                '</button>' : ''
+            }
                 <button onclick="openDriveFile('${file.url}', '${file.name.replace(/'/g, "\\'")}')" class="btn-primary-small" style="padding: 6px 12px;">
                     <i class="fa-solid fa-eye"></i> Apri
                 </button>
             </div>
         `;
-        
+
         driveViewerList.appendChild(card);
     });
 
@@ -1281,11 +1290,11 @@ if (driveViewerSearch) {
 function openKeywordModal(file) {
     currentEditingFileId = file.id;
     currentEditingKeywords = [...(file.keywords || [])];
-    
+
     if (keywordModalFileName) keywordModalFileName.textContent = file.name;
     if (keywordInput) keywordInput.value = '';
     renderKeywordTags();
-    
+
     if (keywordModal) keywordModal.classList.remove('hidden');
 }
 
@@ -1314,7 +1323,7 @@ function renderKeywordTags() {
         tag.style.alignItems = 'center';
         tag.style.gap = '5px';
         tag.style.border = '1px solid #10b981';
-        
+
         tag.innerHTML = `
             ${kw}
             <i class="fa-solid fa-xmark remove-kw" data-idx="${index}" style="cursor: pointer; color: #ef4444;"></i>
@@ -1377,7 +1386,7 @@ if (btnSaveKeywords) {
                 }
                 // Chiudi modale e re-render
                 if (keywordModal) keywordModal.classList.add('hidden');
-                
+
                 // Forza re-render con ricerca corrente
                 if (driveViewerSearch) {
                     const event = new Event('input');
@@ -1398,14 +1407,14 @@ if (btnSaveKeywords) {
 }
 
 // Funzione globale per aprire i file Drive nativamente nell'iframe del portale
-window.openDriveFile = function(url, title) {
+window.openDriveFile = function (url, title) {
     if (!url) return;
     let finalUrl = url;
     // Converte il link di visualizzazione Drive in preview per permettere l'embed nell'iframe
     if (finalUrl.includes('drive.google.com/file/d/') && finalUrl.includes('/view')) {
         finalUrl = finalUrl.replace(/\/view.*$/, '/preview');
     }
-    
+
     // Aumenta temporaneamente lo z-index dell'iframeScreen per portarlo sopra al drive-viewer-screen
     iframeScreen.style.zIndex = '3000';
     openAppInIframe(title || 'Documento', finalUrl);
