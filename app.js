@@ -1534,7 +1534,7 @@ async function sendModuloRequest(moduloType, payload, btn) {
             method: 'POST',
             body: JSON.stringify({
                 action: 'SUBMIT_MODULO',
-                moduloType: moduloType,
+                modulo: moduloType,
                 payload: payload
             })
         });
