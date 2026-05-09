@@ -1,4 +1,4 @@
-const CACHE_NAME = 'portale-aziendale-v17';
+const CACHE_NAME = 'portale-aziendale-v18';
 const ASSETS_TO_CACHE = [
     './',
     './index.html',
