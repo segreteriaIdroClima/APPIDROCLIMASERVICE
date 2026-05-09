@@ -46,67 +46,7 @@ body.fullscreen-active #home-screen {
     transition: opacity 0.3s ease;
 }
 
-#iframe-screen.iframe-technical-mode {
-    background: #000 !important;
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-    z-index: 100000 !important;
-}
 
-#iframe-screen.iframe-technical-mode #iframe-container {
-    background: #000 !important;
-    box-shadow: none !important;
-}
-
-#iframe-screen.iframe-technical-mode #iframe-toolbar {
-    position: absolute !important;
-    top: calc(env(safe-area-inset-top) + 8px) !important;
-    right: 8px !important;
-    left: auto !important;
-    width: auto !important;
-    padding: 0 !important;
-    background: transparent !important;
-    border: 0 !important;
-    z-index: 5 !important;
-}
-
-#iframe-screen.iframe-technical-mode #iframe-toolbar>div {
-    display: none !important;
-}
-
-#iframe-screen.iframe-technical-mode #btn-close-iframe {
-    width: 46px !important;
-    height: 46px !important;
-    padding: 0 !important;
-    border-radius: 50% !important;
-    font-size: 0 !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    background: rgba(239, 68, 68, 0.92) !important;
-}
-
-#iframe-screen.iframe-technical-mode #btn-close-iframe i {
-    font-size: 22px !important;
-}
-
-#iframe-screen.iframe-technical-mode #iframe-body {
-    flex: 1 1 auto !important;
-    width: 100% !important;
-    min-width: 0 !important;
-    height: 100% !important;
-    overflow: hidden !important;
-    -webkit-overflow-scrolling: touch !important;
-}
-
-#iframe-screen.iframe-technical-mode #app-iframe {
-    width: 100% !important;
-    min-width: 0 !important;
-    max-width: 100% !important;
-    height: 100% !important;
-    transform: none !important;
-    zoom: 1 !important;
-}
 
 .glass {
     background: var(--card-bg);

@@ -263,13 +263,7 @@ function renderApps(apps) {
                 const targetUrl = app.link;
                 const targetName = app.nome;
 
-                // FIX per iOS: Apple blocca i popup (window.open) se aperti in modo asincrono (dopo l'animazione).
-                // Inoltre Apple blocca i cookie di terze parti (ITP) negli iframe, impedendo il login Google
-                // per le app ristrette al dominio "idroclima". Aprendo in '_blank' sincrono aggiriamo entrambi i problemi.
-                if (isIos() && !targetUrl.startsWith('native://')) {
-                    window.open(targetUrl, '_blank');
-                    return;
-                }
+                // Rimosso workaround iOS per forzare l'apertura in app
 
                 runAppTransition(card, () => {
                     if (targetUrl === 'native://timbrature') {
@@ -412,11 +406,9 @@ function runAppTransition(sourceElement, callback) {
 
 // Logica Apertura App in iFrame
 function openAppInIframe(nome, url, appId = '') {
-    const isTechnicalApp = /tecnico|cruscotto/i.test(`${nome || ''} ${url || ''} ${appId || ''}`);
     document.body.style.overflow = 'hidden';
     hideHomeForFullscreenView();
     iframeTitle.textContent = nome;
-    iframeScreen.classList.toggle('iframe-technical-mode', isTechnicalApp);
     iframeScreen.classList.remove('hidden');
     iframeScreen.style.width = '100vw';
     iframeScreen.style.height = '100dvh';
@@ -468,7 +460,6 @@ btnCloseIframe.addEventListener('click', () => {
     iframeScreen.classList.add('hidden');
     appIframe.src = ''; // Svuota per fermare processi in background
     iframeScreen.style.zIndex = ''; // Ripristina z-index se modificato
-    iframeScreen.classList.remove('iframe-technical-mode');
 
     // Ripristina lo scroll solo se non ci sono altre modali full-screen attive
     if (document.getElementById('drive-viewer-screen').classList.contains('hidden') &&
