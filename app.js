@@ -1,4 +1,4 @@
-﻿// Sostituisci questo URL con l'URL della tua Web App di Google Apps Script (assicurati finisca con /exec)
+// Sostituisci questo URL con l'URL della tua Web App di Google Apps Script (assicurati finisca con /exec)
 const API_URL = 'https://script.google.com/macros/s/AKfycbx38nGmf0QzZz8AjDrCgljgXjmXA5ZHPIB50quq6M_rh5qCypdJ9lvqkyKVrXF804St/exec';
 
 // Elementi DOM
@@ -270,6 +270,8 @@ function renderApps(apps) {
                         openDriveViewerNative('procedure', targetName);
                     } else if (targetUrl === 'native://comunicazioni') {
                         openDriveViewerNative('comunicazioni', targetName);
+                    } else if (targetUrl === 'native://modulirapidi') {
+                        openModuliRapidiNative();
                     } else {
                         openAppInIframe(targetName, targetUrl, app.id);
                     }
