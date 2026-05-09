@@ -1,4 +1,4 @@
-// Sostituisci questo URL con l'URL della tua Web App di Google Apps Script (assicurati finisca con /exec)
+﻿// Sostituisci questo URL con l'URL della tua Web App di Google Apps Script (assicurati finisca con /exec)
 const API_URL = 'https://script.google.com/macros/s/AKfycbx38nGmf0QzZz8AjDrCgljgXjmXA5ZHPIB50quq6M_rh5qCypdJ9lvqkyKVrXF804St/exec';
 
 // Elementi DOM
@@ -86,7 +86,7 @@ window.addEventListener('beforeinstallprompt', (e) => {
 btnInstall.addEventListener('click', async () => {
     // Seleziona comportamento Apple
     if (isIos() && !isInStandaloneMode()) {
-        alert("PER INSTALLARE SU APPLE iOS:\n\n1. Tocca l'icona 'Condividi' (il quadrato con la freccia rivolta in alto) nella barra inferiore di Safari.\n2. Scorri il menù e tocca 'Aggiungi alla schermata Home' o 'Aggiungi a Home'.");
+        alert("PER INSTALLARE SU APPLE iOS:\n\n1. Tocca l'icona 'Condividi' (il quadrato con la freccia rivolta in alto) nella barra inferiore di Safari.\n2. Scorri il menÃ¹ e tocca 'Aggiungi alla schermata Home' o 'Aggiungi a Home'.");
         return;
     }
 
@@ -112,7 +112,7 @@ if ('serviceWorker' in navigator) {
 
 // Inizializzazione
 function init() {
-    // Controlla se c'è una sessione salvata
+    // Controlla se c'Ã¨ una sessione salvata
     const session = localStorage.getItem('portale_session');
     if (session) {
         currentUser = JSON.parse(session);
@@ -361,7 +361,7 @@ function runAppTransition(sourceElement, callback) {
     clone.style.width = rect.width + 'px';
     clone.style.height = rect.height + 'px';
 
-    // Se è un'icona FA (div.app-icon), applica il colore originale
+    // Se Ã¨ un'icona FA (div.app-icon), applica il colore originale
     if (icon.classList.contains('app-icon')) {
         clone.style.backgroundColor = bgColor;
     }
@@ -905,12 +905,8 @@ function renderAppsAdmin() {
                     <option value="native://procedure">App Procedure (Nativa)</option>
                     <option value="native://comunicazioni">App Comunicazioni (Nativa)</option>
                     <option value="native://timbrature">App Timbrature (Nativa)</option>
-                    <option value="URL_MODULI_EXTRA?page=attrezzi">Modulo Attrezzi (sostituisci URL)</option>
-                    <option value="URL_MODULI_EXTRA?page=mezzi">Modulo Mezzi (sostituisci URL)</option>
-                    <option value="URL_MODULI_EXTRA?page=permessi">Modulo Permessi (sostituisci URL)</option>
-                    <option value="URL_MODULI_EXTRA?page=pausa">Modulo Pausa (sostituisci URL)</option>
-                    <option value="URL_MODULI_EXTRA?page=suggerimenti">Modulo Suggerimenti (sostituisci URL)</option>
-                </select>
+                    <option value="native://modulirapidi">Moduli Rapidi (NATIVO)</option>
+                    </select>
             </td>
             <td><input type="text" list="icone-list" value="${a.ICONA}" data-idx="${i}" data-field="ICONA" class="a-input" style="width:100px" placeholder="Seleziona icona..."></td>
             <td><input type="number" value="${a.ORDINE || 99}" data-idx="${i}" data-field="ORDINE" class="a-input" style="width:60px"></td>
@@ -1081,7 +1077,7 @@ function renderPermessi() {
 
             if (permIndex > -1) {
                 let pval = adminData.permessi[permIndex].ABILITATO;
-                hasPerm = (pval === true || pval === 'TRUE' || pval === 'Vero' || pval === 'SÌ');
+                hasPerm = (pval === true || pval === 'TRUE' || pval === 'Vero' || pval === 'SÃŒ');
             } else {
                 adminData.permessi.push({
                     ID_UTENTE: utente.ID_UTENTE,
@@ -1441,4 +1437,169 @@ window.openDriveFile = function (url, title) {
     // Rimosso il tentativo di apertura interna per problemi noti di X-Frame-Options con gli account Google su mobile.
     window.open(url, '_blank');
 };
+
+
+// ================= MODULI RAPIDI NATIVI =================
+
+const moduliRapidiScreen = document.getElementById('moduli-rapidi-screen');
+
+function openModuliRapidiNative() {
+    hideHomeForFullscreenView();
+    moduliRapidiScreen.classList.remove('hidden');
+    goMenu(); // Torna sempre al menu principale all'apertura
+    
+    // Popola select dipendenti se non popolata
+    const dipSelect = document.getElementById('dipSelect');
+    if (dipSelect && dipSelect.options.length <= 1) {
+        // Popola con il currentUser se disponibile
+        const opt = document.createElement('option');
+        opt.value = currentUser.id || currentUser.ID_UTENTE;
+        opt.textContent = currentUser.nome;
+        opt.selected = true;
+        dipSelect.appendChild(opt);
+        
+        // Nascondi il loading che veniva da index.html di moduli extra
+        const loadingDiv = document.getElementById('loading');
+        if (loadingDiv) loadingDiv.classList.add('hidden');
+        document.getElementById('menu').classList.remove('hidden');
+    } else {
+        const loadingDiv = document.getElementById('loading');
+        if (loadingDiv) loadingDiv.classList.add('hidden');
+        document.getElementById('menu').classList.remove('hidden');
+    }
+}
+
+function closeModuliRapidi() {
+    moduliRapidiScreen.classList.add('hidden');
+    restoreHomeAfterFullscreenView();
+}
+
+function showForm(id) {
+    document.getElementById('formTopbar').classList.remove('hidden');
+    document.querySelectorAll('#forms-container .card').forEach(c => c.classList.add('hidden'));
+    
+    if (id !== 'suggerimenti') {
+        const dipCard = document.getElementById('dipCard');
+        if (dipCard) dipCard.classList.remove('hidden');
+    }
+    
+    document.getElementById('form-' + id).classList.remove('hidden');
+    document.getElementById('menu').classList.add('hidden');
+    moduliRapidiScreen.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function goMenu() {
+    document.querySelectorAll('#forms-container .card').forEach(c => c.classList.add('hidden'));
+    document.getElementById('formTopbar').classList.add('hidden');
+    document.getElementById('menu').classList.remove('hidden');
+    moduliRapidiScreen.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function getDip() {
+    const id = currentUser.id || currentUser.ID_UTENTE;
+    const nome = currentUser.nome;
+    if (!id) {
+        alert("Errore: Utente non riconosciuto!");
+        return null;
+    }
+    return { id, nome };
+}
+
+function setBtnLoading(btn, text) {
+    btn.dataset.oldText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = text;
+}
+
+function resetBtn(btn) {
+    btn.disabled = false;
+    if (btn.dataset.oldText) btn.innerHTML = btn.dataset.oldText;
+}
+
+function getBase64(file) {
+    return new Promise((res, rej) => {
+        if (!file) return res('');
+        const reader = new FileReader();
+        reader.onload = () => res(reader.result);
+        reader.onerror = error => rej(error);
+        reader.readAsDataURL(file);
+    });
+}
+
+async function sendModuloRequest(moduloType, payload, btn) {
+    try {
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+                action: 'SUBMIT_MODULO',
+                moduloType: moduloType,
+                payload: payload
+            })
+        });
+        const data = await response.json();
+        if (data.status === 'success') {
+            alert('Richiesta inviata con successo!');
+            goMenu(); // Torna al menu
+            return true;
+        } else {
+            alert('Errore: ' + data.message);
+            return false;
+        }
+    } catch (error) {
+        alert('Errore di rete. Riprova più tardi.');
+        return false;
+    } finally {
+        resetBtn(btn);
+    }
+}
+
+async function inviaSuggerimento(btn) {
+    const testo = document.getElementById('sug_testo').value.trim();
+    if (!testo) return alert("Scrivi un suggerimento!");
+    setBtnLoading(btn, 'INVIO...');
+    const ok = await sendModuloRequest('suggerimenti', { testo }, btn);
+    if (ok) document.getElementById('sug_testo').value = '';
+}
+
+async function inviaAttrezzi(btn) {
+    const dip = getDip(); if (!dip) return;
+    const desc = document.getElementById('att_desc').value.trim();
+    if (!desc) return alert("Descrivi l'attrezzo!");
+    const file = document.getElementById('att_foto').files[0];
+    setBtnLoading(btn, 'INVIO IN CORSO...');
+    const b64 = await getBase64(file);
+    const ok = await sendModuloRequest('attrezzi', { id: dip.id, nome: dip.nome, descrizione: desc, fotoBase64: b64 }, btn);
+    if (ok) { document.getElementById('att_desc').value = ''; document.getElementById('att_foto').value = ''; }
+}
+
+async function inviaMezzi(btn) {
+    const dip = getDip(); if (!dip) return;
+    const targa = document.getElementById('mez_targa').value.trim();
+    const desc = document.getElementById('mez_desc').value.trim();
+    if (!targa || !desc) return alert("Inserisci targa e descrizione!");
+    const file = document.getElementById('mez_foto').files[0];
+    setBtnLoading(btn, 'INVIO IN CORSO...');
+    const b64 = await getBase64(file);
+    const ok = await sendModuloRequest('mezzi', { id: dip.id, nome: dip.nome, targa: targa, descrizione: desc, fotoBase64: b64 }, btn);
+    if (ok) { document.getElementById('mez_targa').value = ''; document.getElementById('mez_desc').value = ''; document.getElementById('mez_foto').value = ''; }
+}
+
+async function inviaPermessi(btn) {
+    const dip = getDip(); if (!dip) return;
+    const tipo = document.getElementById('per_tipo').value;
+    const dal = document.getElementById('per_dal').value;
+    const al = document.getElementById('per_al').value;
+    if (!dal || !al) return alert("Inserisci le date!");
+    setBtnLoading(btn, 'INVIO...');
+    const ok = await sendModuloRequest('permessi', { id: dip.id, nome: dip.nome, tipologia: tipo, dal: dal, al: al, causale: document.getElementById('per_note').value }, btn);
+    if (ok) { document.getElementById('per_dal').value = ''; document.getElementById('per_al').value = ''; document.getElementById('per_note').value = ''; }
+}
+
+async function inviaPausa(btn, min) {
+    const dip = getDip(); if (!dip) return;
+    setBtnLoading(btn, 'INVIO...');
+    await sendModuloRequest('pausa', { id: dip.id, nome: dip.nome, minuti: min }, btn);
+}
+
+
 

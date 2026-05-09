@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="it">
 
 <head>
@@ -16,7 +16,7 @@
 
     <!-- CSS e Font -->
     <link rel="stylesheet" href="style.css?v=16">
-    <!-- Font Awesome per le icone (opzionale, caricato tramite CDN per semplicità) -->
+    <!-- Font Awesome per le icone (opzionale, caricato tramite CDN per semplicitÃ ) -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
 </head>
@@ -211,6 +211,169 @@
         </main>
     </div>
 
+    
+    <!-- Schermata Moduli Rapidi (Nativa) -->
+    <div id="moduli-rapidi-screen" class="screen hidden" style="width: 100vw; height: 100vh; position: fixed; top: 0; left: 0; background: #000; z-index: 900; overflow-y: auto;">
+        <div class="topbar" style="padding: 15px; position: sticky; top: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(10px); z-index: 100;">
+            <button class="back-btn" onclick="closeModuliRapidi()" style="background: var(--card-bg); border: 1px solid var(--border-color); color: white; padding: 8px 16px; border-radius: 8px; font-weight: bold;">
+                <i class="fa-solid fa-arrow-left"></i> Chiudi Moduli
+            </button>
+        </div>
+        
+  <main class="app-shell">
+
+    <div id="loading" class="loading">
+      <div class="loader-card">
+        <div class="spinner"></div>
+        <strong>Caricamento dipendenti...</strong>
+        <p>Preparazione moduli operativi.</p>
+      </div>
+    </div>
+
+    <section id="menu" class="hidden">
+      <div class="hero">
+        <div class="eyebrow">Area operativa</div>
+        <h1>Moduli rapidi</h1>
+        <p class="hero-sub">Seleziona il modulo corretto e invia la richiesta all’ufficio in pochi passaggi.</p>
+      </div>
+
+      <div class="menu-grid">
+        <button class="module-btn" onclick="showForm('attrezzi')">
+          <span class="ico">??</span>
+          <span>
+            <span class="module-title">Richiesta Attrezzi</span>
+            <span class="module-desc">Sostituzione o richiesta nuova attrezzatura.</span>
+          </span>
+          <span class="arrow">›</span>
+        </button>
+
+        <button class="module-btn" onclick="showForm('mezzi')">
+          <span class="ico">??</span>
+          <span>
+            <span class="module-title">Anomalie Mezzi</span>
+            <span class="module-desc">Danni, spie, problemi o segnalazioni sui furgoni.</span>
+          </span>
+          <span class="arrow">›</span>
+        </button>
+
+        <button class="module-btn" onclick="showForm('permessi')">
+          <span class="ico">??</span>
+          <span>
+            <span class="module-title">Ferie e Permessi</span>
+            <span class="module-desc">Richieste HR per assenze, ferie o visite.</span>
+          </span>
+          <span class="arrow">›</span>
+        </button>
+
+        <button class="module-btn" onclick="showForm('pausa')">
+          <span class="ico">?</span>
+          <span>
+            <span class="module-title">Pausa Pranzo</span>
+            <span class="module-desc">Comunica pausa saltata o ridotta.</span>
+          </span>
+          <span class="arrow">›</span>
+        </button>
+
+        <button class="module-btn" onclick="showForm('suggerimenti')">
+          <span class="ico">??</span>
+          <span>
+            <span class="module-title">Suggerimenti</span>
+            <span class="module-desc">Idee per migliorare app, processi o procedure.</span>
+          </span>
+          <span class="arrow">›</span>
+        </button>
+      </div>
+    </section>
+
+    <section id="forms-container">
+
+      <div class="topbar hidden" id="formTopbar">
+        <button class="back-btn" onclick="goMenu()">? Menu</button>
+      </div>
+
+      <div class="card hidden" id="dipCard">
+        <div class="form-head">
+          <h2>Identificazione</h2>
+          <p>Seleziona il tuo nome prima di inviare la richiesta.</p>
+        </div>
+        <label>Il tuo nome</label>
+        <select id="dipSelect">
+          <option value="">-- Seleziona --</option>
+        </select>
+      </div>
+
+      <div id="form-suggerimenti" class="card hidden">
+        <div class="form-head">
+          <h2>Invia un Suggerimento</h2>
+          <p>Puoi proporre miglioramenti su processi, app, procedure o organizzazione interna.</p>
+        </div>
+        <div class="soft-note">Il suggerimento può essere inviato anche senza selezionare il dipendente.</div>
+        <textarea id="sug_testo" rows="5" placeholder="Scrivi qui la tua idea..."></textarea>
+        <button class="btn success" onclick="inviaSuggerimento(this)">INVIA SUGGERIMENTO</button>
+      </div>
+
+      <div id="form-attrezzi" class="card hidden">
+        <div class="form-head">
+          <h2>Richiesta Attrezzatura</h2>
+          <p>Indica cosa serve, cosa è rotto o cosa deve essere sostituito.</p>
+        </div>
+        <textarea id="att_desc" rows="3" placeholder="Descrivi l'attrezzo da sostituire/richiedere"></textarea>
+        <label>Foto opzionale</label>
+        <input type="file" id="att_foto" accept="image/*">
+        <button class="btn danger" onclick="inviaAttrezzi(this)">INVIA RICHIESTA</button>
+      </div>
+
+      <div id="form-mezzi" class="card hidden">
+        <div class="form-head">
+          <h2>Segnalazione Mezzo</h2>
+          <p>Segnala danni, anomalie, spie accese o problemi del mezzo.</p>
+        </div>
+        <label>Targa o nome furgone</label>
+        <input type="text" id="mez_targa" placeholder="Targa o nome del furgone">
+        <label>Descrizione problema</label>
+        <textarea id="mez_desc" rows="3" placeholder="Descrivi il danno o problema"></textarea>
+        <label>Foto danno/cruscotto</label>
+        <input type="file" id="mez_foto" accept="image/*">
+        <button class="btn danger" onclick="inviaMezzi(this)">INVIA SEGNALAZIONE</button>
+      </div>
+
+      <div id="form-permessi" class="card hidden">
+        <div class="form-head">
+          <h2>Ferie / Permessi</h2>
+          <p>Compila il periodo richiesto e aggiungi eventuali note per l’ufficio.</p>
+        </div>
+        <label>Tipologia</label>
+        <select id="per_tipo">
+          <option>Ferie</option>
+          <option>Permesso retribuito</option>
+          <option>Visita medica</option>
+          <option>Altro</option>
+        </select>
+        <label>Dal</label>
+        <input type="date" id="per_dal">
+        <label>Al</label>
+        <input type="date" id="per_al">
+        <label>Note opzionali</label>
+        <textarea id="per_note" rows="2" placeholder="Note per l'ufficio"></textarea>
+        <button class="btn" onclick="inviaPermessi(this)">INVIA RICHIESTA HR</button>
+      </div>
+
+      <div id="form-pausa" class="card hidden">
+        <div class="form-head">
+          <h2>Eccezione Pausa</h2>
+          <p>Usa questo modulo solo se la pausa pranzo è stata saltata o ridotta.</p>
+        </div>
+        <div class="dual-actions">
+          <button class="btn danger" onclick="inviaPausa(this, 0)">SALTATA<br>0 MIN</button>
+          <button class="btn warn" onclick="inviaPausa(this, 30)">RAPIDA<br>30 MIN</button>
+        </div>
+      </div>
+
+    </section>
+  </main>
+
+  
+    </div>
     <!-- Schermata Web App in iFrame -->
     <div id="iframe-screen" class="screen hidden"
         style="width: 100%; height: 100%; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15, 23, 42, 0.85); z-index: 1000; display: flex; flex-direction: column; align-items: center; justify-content: center; margin: 0; padding: 0; overflow: hidden; backdrop-filter: blur(8px);">
@@ -445,3 +608,4 @@
 </body>
 
 </html>
+
