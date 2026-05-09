@@ -263,7 +263,12 @@ function renderApps(apps) {
                 const targetUrl = app.link;
                 const targetName = app.nome;
 
-                // Rimosso workaround iOS per forzare l'apertura in app
+                // Su mobile, gli script Google presentano errori di "Connessione rifiutata" (Drive auth) 
+                // se eseguiti dentro un iframe a causa di X-Frame-Options e policy cookie terze parti.
+                if (targetUrl.includes('script.google.com') || targetUrl.includes('docs.google.com') || targetUrl.includes('drive.google.com')) {
+                    window.open(targetUrl, '_blank');
+                    return;
+                }
 
                 runAppTransition(card, () => {
                     if (targetUrl === 'native://timbrature') {
