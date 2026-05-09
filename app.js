@@ -263,6 +263,14 @@ function renderApps(apps) {
                 const targetUrl = app.link;
                 const targetName = app.nome;
 
+                if (isIos() && !targetUrl.startsWith('native://')) {
+                    // Bypass specifico per iOS: evitiamo iframe a causa del blocco cookie di terze parti (ITP).
+                    // Utilizziamo window.location.href per aprire nel Safari View Controller (in PWA) 
+                    // o nella stessa scheda senza subire blocchi di popup.
+                    window.location.href = targetUrl;
+                    return;
+                }
+
                 runAppTransition(card, () => {
                     if (targetUrl === 'native://timbrature') {
                         openTimbratureNative();
@@ -1437,7 +1445,11 @@ if (btnSaveKeywords) {
 window.openDriveFile = function (url, title) {
     if (!url) return;
     // Rimosso il tentativo di apertura interna per problemi noti di X-Frame-Options con gli account Google su mobile.
-    window.open(url, '_blank');
+    if (isIos()) {
+        window.location.href = url;
+    } else {
+        window.open(url, '_blank');
+    }
 };
 
 
