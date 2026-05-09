@@ -900,7 +900,19 @@ function renderAppsAdmin() {
         tr.innerHTML = `
             <td><input type="text" value="${a.ID_APP}" data-idx="${i}" data-field="ID_APP" class="a-input" style="width:80px"></td>
             <td><input type="text" value="${a.NOME_APP}" data-idx="${i}" data-field="NOME_APP" class="a-input"></td>
-            <td><input type="text" value="${a.LINK_DEPLOYMENT}" data-idx="${i}" data-field="LINK_DEPLOYMENT" class="a-input" style="width:150px"></td>
+            <td>
+                <textarea data-idx="${i}" data-field="LINK_DEPLOYMENT" class="a-input" style="width:250px; height: 50px; resize: vertical; font-size: 11px;" placeholder="https://...">${a.LINK_DEPLOYMENT}</textarea>
+                <select onchange="if(this.value) { const ta = this.previousElementSibling; ta.value = this.value; ta.dispatchEvent(new Event('change')); this.value=''; }" style="width:250px; margin-top:5px; font-size:11px; padding: 4px; background: rgba(15, 23, 42, 0.8); color: white; border: 1px solid rgba(255,255,255,0.2); border-radius: 4px;">
+                    <option value="">-- App di Sistema rapide --</option>
+                    <option value="native://procedure">App Procedure (Nativa)</option>
+                    <option value="native://comunicazioni">App Comunicazioni (Nativa)</option>
+                    <option value="native://timbrature">App Timbrature (Nativa)</option>
+                    <option value="URL_CRUSCOTTO?page=attrezzi">Modulo Attrezzi (sostituisci URL_CRUSCOTTO)</option>
+                    <option value="URL_CRUSCOTTO?page=mezzi">Modulo Mezzi (sostituisci URL_CRUSCOTTO)</option>
+                    <option value="URL_CRUSCOTTO?page=permessi">Modulo Permessi (sostituisci URL_CRUSCOTTO)</option>
+                    <option value="URL_CRUSCOTTO?page=pausa">Modulo Pausa (sostituisci URL_CRUSCOTTO)</option>
+                </select>
+            </td>
             <td><input type="text" list="icone-list" value="${a.ICONA}" data-idx="${i}" data-field="ICONA" class="a-input" style="width:100px" placeholder="Seleziona icona..."></td>
             <td><input type="number" value="${a.ORDINE || 99}" data-idx="${i}" data-field="ORDINE" class="a-input" style="width:60px"></td>
             <td>
@@ -1400,14 +1412,7 @@ if (btnSaveKeywords) {
 // Funzione globale per aprire i file Drive nativamente nell'iframe del portale
 window.openDriveFile = function (url, title) {
     if (!url) return;
-    let finalUrl = url;
-    // Converte il link di visualizzazione Drive in preview per permettere l'embed nell'iframe
-    if (finalUrl.includes('drive.google.com/file/d/') && finalUrl.includes('/view')) {
-        finalUrl = finalUrl.replace(/\/view.*$/, '/preview');
-    }
-
-    // Aumenta temporaneamente lo z-index dell'iframeScreen per portarlo sopra al drive-viewer-screen
-    iframeScreen.style.zIndex = '3000';
-    openAppInIframe(title || 'Documento', finalUrl);
+    // Rimosso il tentativo di apertura interna per problemi noti di X-Frame-Options con gli account Google su mobile.
+    window.open(url, '_blank');
 };
 
