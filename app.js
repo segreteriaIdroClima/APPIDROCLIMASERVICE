@@ -907,10 +907,11 @@ function renderAppsAdmin() {
                     <option value="native://procedure">App Procedure (Nativa)</option>
                     <option value="native://comunicazioni">App Comunicazioni (Nativa)</option>
                     <option value="native://timbrature">App Timbrature (Nativa)</option>
-                    <option value="URL_CRUSCOTTO?page=attrezzi">Modulo Attrezzi (sostituisci URL_CRUSCOTTO)</option>
-                    <option value="URL_CRUSCOTTO?page=mezzi">Modulo Mezzi (sostituisci URL_CRUSCOTTO)</option>
-                    <option value="URL_CRUSCOTTO?page=permessi">Modulo Permessi (sostituisci URL_CRUSCOTTO)</option>
-                    <option value="URL_CRUSCOTTO?page=pausa">Modulo Pausa (sostituisci URL_CRUSCOTTO)</option>
+                    <option value="URL_MODULI_EXTRA?page=attrezzi">Modulo Attrezzi (sostituisci URL)</option>
+                    <option value="URL_MODULI_EXTRA?page=mezzi">Modulo Mezzi (sostituisci URL)</option>
+                    <option value="URL_MODULI_EXTRA?page=permessi">Modulo Permessi (sostituisci URL)</option>
+                    <option value="URL_MODULI_EXTRA?page=pausa">Modulo Pausa (sostituisci URL)</option>
+                    <option value="URL_MODULI_EXTRA?page=suggerimenti">Modulo Suggerimenti (sostituisci URL)</option>
                 </select>
             </td>
             <td><input type="text" list="icone-list" value="${a.ICONA}" data-idx="${i}" data-field="ICONA" class="a-input" style="width:100px" placeholder="Seleziona icona..."></td>
@@ -990,9 +991,36 @@ function updateUtenteData(e) {
 }
 
 function updateAppData(e) {
-    let idx = e.target.getAttribute('data-idx');
+    let idx = parseInt(e.target.getAttribute('data-idx'));
     let field = e.target.getAttribute('data-field');
-    adminData.apps[idx][field] = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+    let newValue = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+
+    if (field === 'ORDINE') {
+        newValue = parseInt(newValue);
+        if (isNaN(newValue)) newValue = 99;
+        let oldValue = parseInt(adminData.apps[idx][field] || 99);
+        adminData.apps[idx][field] = newValue;
+
+        adminData.apps.forEach((a, i) => {
+            if (i !== idx) {
+                let o = parseInt(a.ORDINE || 99);
+                if (oldValue > newValue && o >= newValue && o < oldValue) {
+                    a.ORDINE = o + 1;
+                } else if (oldValue < newValue && o > oldValue && o <= newValue) {
+                    a.ORDINE = o - 1;
+                }
+            }
+        });
+
+        adminData.apps.sort((a,b) => parseInt(a.ORDINE||99) - parseInt(b.ORDINE||99));
+        adminData.apps.forEach((a, i) => a.ORDINE = i + 1);
+
+        renderAppsAdmin();
+        renderPermessi();
+        return;
+    }
+
+    adminData.apps[idx][field] = newValue;
 
     // Se cambia un ID APP dobbiamo re-renderizzare i permessi (o se si disattiva/attiva, cambiano le colonne)
     if (field === 'ID_APP' || field === 'ATTIVA' || field === 'VISIBILE_HOME') {
