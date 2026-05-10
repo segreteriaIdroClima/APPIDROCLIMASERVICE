@@ -1773,3 +1773,10 @@ window.switchAdminTab = function(tabId) {
     });
 };
 
+
+
+window.navigateFolder = function(id, name) {
+    driveNavStack.push({id: id, name: name});
+    fetchDriveFiles(currentDriveType, id, name);
+};
+
