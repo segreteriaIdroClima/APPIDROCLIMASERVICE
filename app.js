@@ -235,6 +235,9 @@ async function loadApps() {
             renderApps(data.apps);
         } else {
             alert("Errore nel caricamento delle app: " + data.message);
+            if (data.message === 'Utente non attivo.' || data.message.includes('non attivo')) {
+                btnLogout.click();
+            }
         }
     } catch (error) {
         console.error("Errore fetch app:", error);

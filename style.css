@@ -1,4 +1,4 @@
-﻿:root {
+:root {
     --bg-color: #0f172a;
     --primary-color: #0ea5e9;
     --primary-hover: #0284c7;
@@ -653,7 +653,7 @@ input:checked+.slider:before {
 }
 /* MODULI RAPIDI NATIVI */
 
-    :root {
+    #moduli-rapidi-shell {
       --bg: #000;
       --panel: #0b0d12;
       --card-bg: linear-gradient(180deg, #171a22 0%, #0d0f14 100%);
@@ -670,15 +670,12 @@ input:checked+.slider:before {
       --shadow: 0 18px 45px rgba(0, 0, 0, .45);
     }
 
-    * {
+    #moduli-rapidi-shell * {
       box-sizing: border-box;
       -webkit-tap-highlight-color: transparent;
     }
 
-    html,
-    body {
-      margin: 0;
-      min-height: 100%;
+    #moduli-rapidi-screen {
       background:
         radial-gradient(circle at top left, rgba(59, 130, 246, .20), transparent 32%),
         radial-gradient(circle at bottom right, rgba(16, 185, 129, .12), transparent 28%),
@@ -688,12 +685,9 @@ input:checked+.slider:before {
       -webkit-font-smoothing: antialiased;
     }
 
-    body {
+    #moduli-rapidi-shell {
       padding: max(14px, env(safe-area-inset-top)) 14px max(18px, env(safe-area-inset-bottom));
       overflow-x: hidden;
-    }
-
-    .app-shell {
       width: 100%;
       max-width: 720px;
       margin: 0 auto;
