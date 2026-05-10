@@ -1049,4 +1049,82 @@ input:checked+.slider:before {
         grid-template-columns: 1fr;
       }
     }
+
+/* NUOVE CLASSI ADMIN CARDS */
+.admin-cards-container {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    width: 100%;
+}
+
+.admin-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.admin-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    padding-bottom: 10px;
+    font-weight: 600;
+}
+
+.admin-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.admin-input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.admin-input-group label {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.admin-input-group input[type="text"],
+.admin-input-group input[type="number"],
+.admin-input-group select {
+    width: 100%;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid var(--card-border);
+    background: var(--input-bg);
+    color: var(--text-main);
+    font-size: 14px;
+}
+
+.admin-input-group input:focus,
+.admin-input-group select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+}
+
+.admin-toggle-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px 0;
+}
+
+.admin-log-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px;
+    background: rgba(0,0,0,0.2);
+    border-radius: 6px;
+    font-size: 14px;
+}
   

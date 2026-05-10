@@ -32,11 +32,6 @@ const btnAddApp = document.getElementById('btn-add-app');
 const btnAddGroup = document.getElementById('btn-add-group');
 const adminLoading = document.getElementById('admin-loading');
 const adminContent = document.getElementById('admin-content');
-const tableUtentiBody = document.querySelector('#table-utenti tbody');
-const tableAppsBody = document.querySelector('#table-apps tbody');
-const tableGruppiBody = document.getElementById('gruppi-body');
-const tablePermessiHeader = document.getElementById('permessi-header');
-const tablePermessiBody = document.getElementById('permessi-body');
 const transitionOverlay = document.getElementById('transition-overlay');
 const transitionIconContainer = document.getElementById('transition-icon-container');
 
@@ -265,6 +260,17 @@ function renderApps(apps) {
                 e.preventDefault();
                 const targetUrl = app.link;
                 const targetName = app.nome;
+
+                fetch(API_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        action: 'LOG_APP_OPEN',
+                        userId: currentUser.id || currentUser.ID_UTENTE,
+                        userName: currentUser.nome || currentUser.NOME,
+                        appId: app.id,
+                        appName: app.nome
+                    })
+                }).catch(e => console.error("Log error", e));
 
                 if (isIos() && !targetUrl.startsWith('native://')) {
                     // Bypass specifico per iOS: evitiamo iframe a causa del blocco cookie di terze parti (ITP).
@@ -679,6 +685,7 @@ async function loadAdminData() {
 }
 
 function renderAdminDashboard() {
+    renderMonitoraggio();
     renderUtenti();
     renderAppsAdmin();
     renderGruppi();
@@ -693,12 +700,48 @@ function renderAdminDashboard() {
         monitorBtnContainer.style.textAlign = 'center';
         monitorBtnContainer.innerHTML = `
             <button class="btn-primary" style="background:#6366f1; width: auto; padding: 12px 25px;">
-                <i class="fa-solid fa-microchip"></i> Apri Monitoraggio Risorse Account
+                <i class="fa-solid fa-microchip"></i> Apri Statistiche Quota Sistema
             </button>
         `;
         monitorBtnContainer.querySelector('button').onclick = openMonitorScreen;
         adminDashboard.appendChild(monitorBtnContainer);
     }
+}
+
+function renderMonitoraggio() {
+    const container = document.getElementById('monitoraggio-container');
+    if (!container) return;
+    container.innerHTML = '';
+
+    if (!adminData.log_accessi || adminData.log_accessi.length === 0) {
+        container.innerHTML = '<p style="color:var(--text-muted); font-size:14px; text-align:center;">Nessun dato negli ultimi 30 giorni.</p>';
+        return;
+    }
+
+    adminData.log_accessi.forEach(log => {
+        let card = document.createElement('div');
+        card.className = 'admin-card';
+        
+        let header = document.createElement('div');
+        header.className = 'admin-card-header';
+        header.innerHTML = `<span><i class="fa-solid fa-chart-line"></i> ${log.app}</span> <span class="badge-mid" style="background:var(--primary-color);">${log.accessi.reduce((a,b)=>a+b.conteggio, 0)} view</span>`;
+        card.appendChild(header);
+
+        let body = document.createElement('div');
+        body.className = 'admin-card-body';
+        
+        log.accessi.forEach(u => {
+            body.innerHTML += `
+                <div class="admin-log-row">
+                    <span><i class="fa-solid fa-user-check" style="color:var(--text-muted);"></i> ${u.utente}</span>
+                    <strong style="color:var(--text-main);">${u.conteggio}</strong>
+                </div>
+            `;
+        });
+        
+        card.appendChild(body);
+        container.appendChild(card);
+    });
 }
 
 // ================= MONITORAGGIO SYSTEM LOGIC =================
@@ -846,37 +889,51 @@ function renderUtenti() {
         });
     }
 
-    tableUtentiBody.innerHTML = '';
+    const container = document.getElementById('utenti-container');
+    if (!container) return;
+    container.innerHTML = '';
     adminData.utenti.forEach((u, i) => {
-        const tr = document.createElement('tr');
-
         let profiliOptions = adminData.profili.map(p =>
             `<option value="${p.ID_PROFILO}" ${p.ID_PROFILO === u.PROFILO ? 'selected' : ''}>${p.ID_PROFILO}</option>`
         ).join('');
-
         let isAttivo = (u.ATTIVO === true || u.ATTIVO === 'TRUE' || u.ATTIVO === 'Vero');
 
-        tr.innerHTML = `
-            <td><input type="text" value="${u.ID_UTENTE}" data-idx="${i}" data-field="ID_UTENTE" class="u-input" style="width:70px"></td>
-            <td><input type="text" list="nomi-dipendenti" value="${u.NOME}" data-idx="${i}" data-field="NOME" class="u-input" placeholder="Libero o scegli..."></td>
-            <td><input type="text" value="${u.USERNAME}" data-idx="${i}" data-field="USERNAME" class="u-input" style="width:100px"></td>
-            <td><input type="text" value="${u.PASSWORD_HASH}" data-idx="${i}" data-field="PASSWORD_HASH" class="u-input" style="width:100px"></td>
-            <td>
-                <select data-idx="${i}" data-field="PROFILO" class="u-input">
-                    ${profiliOptions}
-                </select>
-            </td>
-            <td>
-                <label class="toggle-switch">
-                    <input type="checkbox" data-idx="${i}" data-field="ATTIVO" class="u-toggle" ${isAttivo ? 'checked' : ''}>
-                    <span class="slider"></span>
-                </label>
-            </td>
-            <td>
+        let card = document.createElement('div');
+        card.className = 'admin-card';
+        card.innerHTML = `
+            <div class="admin-card-header">
+                <span><i class="fa-solid fa-user"></i> ${u.NOME || 'Nuovo'} (${u.ID_UTENTE})</span>
                 <button class="btn-danger-small" onclick="removeUtente(${i})"><i class="fa-solid fa-trash"></i></button>
-            </td>
+            </div>
+            <div class="admin-card-body">
+                <div class="admin-input-group">
+                    <label>ID e Nome Dipendente</label>
+                    <div style="display:flex; gap:10px;">
+                        <input type="text" value="${u.ID_UTENTE}" data-idx="${i}" data-field="ID_UTENTE" class="u-input" style="flex:1" placeholder="ID">
+                        <input type="text" list="nomi-dipendenti" value="${u.NOME}" data-idx="${i}" data-field="NOME" class="u-input" style="flex:3" placeholder="Nome">
+                    </div>
+                </div>
+                <div class="admin-input-group">
+                    <label>Credenziali Accesso</label>
+                    <div style="display:flex; gap:10px;">
+                        <input type="text" value="${u.USERNAME}" data-idx="${i}" data-field="USERNAME" class="u-input" placeholder="Username" style="flex:1">
+                        <input type="text" value="${u.PASSWORD_HASH}" data-idx="${i}" data-field="PASSWORD_HASH" class="u-input" placeholder="Password" style="flex:1">
+                    </div>
+                </div>
+                <div class="admin-input-group">
+                    <label>Gruppo di Permessi</label>
+                    <select data-idx="${i}" data-field="PROFILO" class="u-input">${profiliOptions}</select>
+                </div>
+                <div class="admin-toggle-row">
+                    <span>Account Attivo</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" data-idx="${i}" data-field="ATTIVO" class="u-toggle" ${isAttivo ? 'checked' : ''}>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
         `;
-        tableUtentiBody.appendChild(tr);
+        container.appendChild(card);
     });
 
     // Aggiungi event listeners
@@ -902,44 +959,64 @@ function renderAppsAdmin() {
         document.body.appendChild(datalist);
     }
 
-    tableAppsBody.innerHTML = '';
+    const container = document.getElementById('apps-container');
+    if (!container) return;
+    container.innerHTML = '';
+    
     adminData.apps.forEach((a, i) => {
-        const tr = document.createElement('tr');
         let isAttiva = (a.ATTIVA === true || a.ATTIVA === 'TRUE' || a.ATTIVA === 'Vero');
         let isVis = (a.VISIBILE_HOME === true || a.VISIBILE_HOME === 'TRUE' || a.VISIBILE_HOME === 'Vero');
 
-        tr.innerHTML = `
-            <td><input type="text" value="${a.ID_APP}" data-idx="${i}" data-field="ID_APP" class="a-input" style="width:80px"></td>
-            <td><input type="text" value="${a.NOME_APP}" data-idx="${i}" data-field="NOME_APP" class="a-input"></td>
-            <td>
-                <textarea data-idx="${i}" data-field="LINK_DEPLOYMENT" class="a-input" style="width:250px; height: 50px; resize: vertical; font-size: 11px;" placeholder="https://...">${a.LINK_DEPLOYMENT}</textarea>
-                <select onchange="if(this.value) { const ta = this.previousElementSibling; ta.value = this.value; ta.dispatchEvent(new Event('change')); this.value=''; }" style="width:250px; margin-top:5px; font-size:11px; padding: 4px; background: rgba(15, 23, 42, 0.8); color: white; border: 1px solid rgba(255,255,255,0.2); border-radius: 4px;">
-                    <option value="">-- App di Sistema rapide --</option>
-                    <option value="native://procedure">App Procedure (Nativa)</option>
-                    <option value="native://comunicazioni">App Comunicazioni (Nativa)</option>
-                    <option value="native://timbrature">App Timbrature (Nativa)</option>
-                    <option value="native://modulirapidi">Moduli Rapidi (NATIVO)</option>
-                    </select>
-            </td>
-            <td><input type="text" list="icone-list" value="${a.ICONA}" data-idx="${i}" data-field="ICONA" class="a-input" style="width:100px" placeholder="Seleziona icona..."></td>
-            <td><input type="number" value="${a.ORDINE || 99}" data-idx="${i}" data-field="ORDINE" class="a-input" style="width:60px"></td>
-            <td>
-                <label class="toggle-switch">
-                    <input type="checkbox" data-idx="${i}" data-field="ATTIVA" class="a-toggle" ${isAttiva ? 'checked' : ''}>
-                    <span class="slider"></span>
-                </label>
-            </td>
-            <td>
-                <label class="toggle-switch">
-                    <input type="checkbox" data-idx="${i}" data-field="VISIBILE_HOME" class="a-toggle" ${isVis ? 'checked' : ''}>
-                    <span class="slider"></span>
-                </label>
-            </td>
-            <td>
+        let card = document.createElement('div');
+        card.className = 'admin-card';
+        card.innerHTML = `
+            <div class="admin-card-header">
+                <span><i class="${a.ICONA.startsWith('fa-') ? a.ICONA : 'fa-solid fa-cube'}"></i> ${a.NOME_APP || 'Nuova App'} (${a.ID_APP})</span>
                 <button class="btn-danger-small" onclick="removeApp(${i})"><i class="fa-solid fa-trash"></i></button>
-            </td>
+            </div>
+            <div class="admin-card-body">
+                <div class="admin-input-group">
+                    <label>ID App e Nome Visualizzato</label>
+                    <div style="display:flex; gap:10px;">
+                        <input type="text" value="${a.ID_APP}" data-idx="${i}" data-field="ID_APP" class="a-input" style="flex:1" placeholder="ID APP">
+                        <input type="text" value="${a.NOME_APP}" data-idx="${i}" data-field="NOME_APP" class="a-input" style="flex:2" placeholder="Nome Visualizzato">
+                    </div>
+                </div>
+                <div class="admin-input-group">
+                    <label>Link Deployment / Modulo Nativo</label>
+                    <textarea data-idx="${i}" data-field="LINK_DEPLOYMENT" class="a-input" style="width:100%; height: 50px; resize: vertical; font-size: 11px; padding:8px; border-radius:6px; background:var(--input-bg); color:var(--text-main); border:1px solid var(--card-border);" placeholder="https://... o native://...">${a.LINK_DEPLOYMENT}</textarea>
+                    <select onchange="if(this.value) { const ta = this.previousElementSibling; ta.value = this.value; ta.dispatchEvent(new Event('change')); this.value=''; }" class="u-input" style="font-size:12px;">
+                        <option value="">-- Autocompila Modulo Nativo --</option>
+                        <option value="native://procedure">App Procedure</option>
+                        <option value="native://comunicazioni">App Comunicazioni</option>
+                        <option value="native://timbrature">App Timbrature</option>
+                        <option value="native://modulirapidi">Moduli Rapidi</option>
+                    </select>
+                </div>
+                <div class="admin-input-group">
+                    <label>Icona e Ordine</label>
+                    <div style="display:flex; gap:10px;">
+                        <input type="text" list="icone-list" value="${a.ICONA}" data-idx="${i}" data-field="ICONA" class="a-input" style="flex:2" placeholder="Icona">
+                        <input type="number" value="${a.ORDINE || 99}" data-idx="${i}" data-field="ORDINE" class="a-input" style="flex:1" placeholder="Ordine">
+                    </div>
+                </div>
+                <div class="admin-toggle-row">
+                    <span>App Attiva nel sistema</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" data-idx="${i}" data-field="ATTIVA" class="a-toggle" ${isAttiva ? 'checked' : ''}>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div class="admin-toggle-row">
+                    <span>Visibile in Homepage</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" data-idx="${i}" data-field="VISIBILE_HOME" class="a-toggle" ${isVis ? 'checked' : ''}>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
         `;
-        tableAppsBody.appendChild(tr);
+        container.appendChild(card);
     });
 
     document.querySelectorAll('.a-input').forEach(el => el.addEventListener('change', updateAppData));
@@ -947,20 +1024,29 @@ function renderAppsAdmin() {
 }
 
 function renderGruppi() {
-    if (!tableGruppiBody) return;
-    tableGruppiBody.innerHTML = '';
+    const container = document.getElementById('gruppi-container');
+    if (!container) return;
+    container.innerHTML = '';
     adminData.profili.forEach((g, i) => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td><input type="text" value="${g.ID_PROFILO || ''}" data-idx="${i}" data-field="ID_PROFILO" class="g-input" style="width:100px"></td>
-            <td><input type="text" value="${g.DESCRIZIONE || ''}" data-idx="${i}" data-field="DESCRIZIONE" class="g-input"></td>
-            <td>
+        let card = document.createElement('div');
+        card.className = 'admin-card';
+        card.innerHTML = `
+            <div class="admin-card-header">
+                <span><i class="fa-solid fa-users-gear"></i> ${g.ID_PROFILO || 'Nuovo Gruppo'}</span>
                 <button class="btn-danger-small" onclick="removeGruppo(${i})"><i class="fa-solid fa-trash"></i></button>
-            </td>
+            </div>
+            <div class="admin-card-body">
+                <div class="admin-input-group">
+                    <label>Nome Gruppo e Descrizione</label>
+                    <div style="display:flex; gap:10px;">
+                        <input type="text" value="${g.ID_PROFILO || ''}" data-idx="${i}" data-field="ID_PROFILO" class="g-input" style="flex:1" placeholder="NOME GRUPPO">
+                        <input type="text" value="${g.DESCRIZIONE || ''}" data-idx="${i}" data-field="DESCRIZIONE" class="g-input" style="flex:2" placeholder="Descrizione">
+                    </div>
+                </div>
+            </div>
         `;
-        tableGruppiBody.appendChild(tr);
+        container.appendChild(card);
     });
-
     document.querySelectorAll('.g-input').forEach(el => el.addEventListener('change', updateGruppoData));
 }
 
@@ -969,15 +1055,15 @@ function updateGruppoData(e) {
     let field = e.target.getAttribute('data-field');
     adminData.profili[idx][field] = e.target.value;
 
-    // Se modifichiamo ID di un gruppo, aggiorniamo i selettori degli utenti
-    if (field === 'ID_PROFILO') renderUtenti();
+    if (field === 'ID_PROFILO') { renderUtenti(); renderPermessi(); }
 }
 
 window.removeGruppo = function (idx) {
     if (confirm("Sei sicuro di eliminare questo gruppo?")) {
         adminData.profili.splice(idx, 1);
         renderGruppi();
-        renderUtenti(); // aggiorna select
+        renderUtenti(); 
+        renderPermessi();
     }
 };
 
@@ -988,6 +1074,7 @@ if (btnAddGroup) {
         });
         renderGruppi();
         renderUtenti();
+        renderPermessi();
     });
 }
 
@@ -1056,70 +1143,113 @@ window.removeApp = function (idx) {
     }
 };
 
-btnAddUser.addEventListener('click', () => {
-    let newId = 'U' + String(adminData.utenti.length + 1).padStart(3, '0');
-    adminData.utenti.push({
-        ID_UTENTE: newId, NOME: 'Nuovo Utente', USERNAME: 'nuovouser', PASSWORD_HASH: 'pass123',
-        PROFILO: 'UFFICIO', ATTIVO: true, IS_ADMIN: false, NOTE: ''
-    });
-    renderUtenti();
-});
-
-btnAddApp.addEventListener('click', () => {
-    adminData.apps.push({
-        ID_APP: 'NUOVA_APP', NOME_APP: 'Nuova App', LINK_DEPLOYMENT: 'https://',
-        DESCRIZIONE: '', ICONA: 'fa-globe', ORDINE: 99, ATTIVA: true, VISIBILE_HOME: true, COLORE_BADGE: '#10b981', NOTE: ''
-    });
-    renderAppsAdmin();
-    renderPermessi();
-});
-
-function renderPermessi() {
-    let appsDisponibili = adminData.apps.filter(app => app.ATTIVA === true || app.ATTIVA === 'TRUE' || app.ATTIVA === 'Vero');
-    tablePermessiHeader.innerHTML = '<th>Utente</th>' + appsDisponibili.map(app => `<th>${app.NOME_APP}</th>`).join('');
-
-    tablePermessiBody.innerHTML = '';
-    adminData.utenti.forEach(utente => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td><strong>${utente.NOME} (${utente.ID_UTENTE})</strong></td>`;
-
-        appsDisponibili.forEach(app => {
-            let hasPerm = false;
-            // CONTROLLO SU ID_UTENTE INVECE DI ID_PROFILO
-            let permIndex = adminData.permessi.findIndex(p => p.ID_UTENTE === utente.ID_UTENTE && p.ID_APP === app.ID_APP);
-
-            if (permIndex > -1) {
-                let pval = adminData.permessi[permIndex].ABILITATO;
-                hasPerm = (pval === true || pval === 'TRUE' || pval === 'Vero' || pval === 'SÃŒ');
-            } else {
-                adminData.permessi.push({
-                    ID_UTENTE: utente.ID_UTENTE,
-                    ID_APP: app.ID_APP,
-                    ABILITATO: false
-                });
-                permIndex = adminData.permessi.length - 1;
-            }
-
-            tr.innerHTML += `
-                <td>
-                    <label class="toggle-switch">
-                        <input type="checkbox" onchange="updatePermesso(${permIndex}, this)" ${hasPerm ? 'checked' : ''}>
-                        <span class="slider"></span>
-                    </label>
-                </td>
-            `;
+if (btnAddUser) {
+    btnAddUser.addEventListener('click', () => {
+        let newId = 'U' + String(adminData.utenti.length + 1).padStart(3, '0');
+        adminData.utenti.push({
+            ID_UTENTE: newId, NOME: 'Nuovo Utente', USERNAME: 'nuovouser', PASSWORD_HASH: 'pass123',
+            PROFILO: 'TECNICO', ATTIVO: true, IS_ADMIN: false, NOTE: ''
         });
-        tablePermessiBody.appendChild(tr);
+        renderUtenti();
     });
 }
 
-window.updatePermesso = function (idx, el) {
-    adminData.permessi[idx].ABILITATO = el.checked;
+if (btnAddApp) {
+    btnAddApp.addEventListener('click', () => {
+        adminData.apps.push({
+            ID_APP: 'NUOVA_APP', NOME_APP: 'Nuova App', LINK_DEPLOYMENT: 'https://',
+            DESCRIZIONE: '', ICONA: 'fa-solid fa-cube', ORDINE: 99, ATTIVA: true, VISIBILE_HOME: true, COLORE_BADGE: '#10b981', NOTE: ''
+        });
+        renderAppsAdmin();
+        renderPermessi();
+    });
+}
+
+let groupPerms = {};
+
+function renderPermessi() {
+    let appsDisponibili = adminData.apps.filter(app => app.ATTIVA === true || app.ATTIVA === 'TRUE' || app.ATTIVA === 'Vero');
+    const container = document.getElementById('permessi-container');
+    if (!container) return;
+    container.innerHTML = '';
+
+    // Ricostruiamo lo stato dei permessi di gruppo partendo dagli utenti attuali
+    adminData.profili.forEach(gruppo => {
+        if (!groupPerms[gruppo.ID_PROFILO]) groupPerms[gruppo.ID_PROFILO] = {};
+        
+        let refUser = adminData.utenti.find(u => u.PROFILO === gruppo.ID_PROFILO);
+
+        let card = document.createElement('div');
+        card.className = 'admin-card';
+        card.innerHTML = `
+            <div class="admin-card-header" style="color:var(--primary-color);">
+                <span><i class="fa-solid fa-key"></i> Gruppo: <b>${gruppo.ID_PROFILO}</b></span>
+            </div>
+            <div class="admin-card-body" id="perms-body-${gruppo.ID_PROFILO}">
+            </div>
+        `;
+        container.appendChild(card);
+
+        const body = card.querySelector('.admin-card-body');
+        
+        appsDisponibili.forEach(app => {
+            let hasPerm = false;
+
+            if (groupPerms[gruppo.ID_PROFILO][app.ID_APP] !== undefined) {
+                hasPerm = groupPerms[gruppo.ID_PROFILO][app.ID_APP];
+            } else if (refUser) {
+                let perm = adminData.permessi.find(p => p.ID_UTENTE === refUser.ID_UTENTE && p.ID_APP === app.ID_APP);
+                if (perm) {
+                    let pval = perm.ABILITATO;
+                    hasPerm = (pval === true || pval === 'TRUE' || pval === 'Vero' || pval === 'SÌ');
+                }
+                groupPerms[gruppo.ID_PROFILO][app.ID_APP] = hasPerm;
+            } else {
+                groupPerms[gruppo.ID_PROFILO][app.ID_APP] = false;
+            }
+
+            body.innerHTML += `
+                <div class="admin-toggle-row" style="border-bottom: 1px solid rgba(255,255,255,0.05); padding: 8px 0;">
+                    <span style="font-size:14px;"><i class="${app.ICONA.startsWith('fa-') ? app.ICONA : 'fa-solid fa-cube'}"></i> ${app.NOME_APP}</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" onchange="updateGroupPermesso('${gruppo.ID_PROFILO}', '${app.ID_APP}', this.checked)" ${hasPerm ? 'checked' : ''}>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            `;
+        });
+    });
+}
+
+window.updateGroupPermesso = function (gruppoId, appId, checked) {
+    if (!groupPerms[gruppoId]) groupPerms[gruppoId] = {};
+    groupPerms[gruppoId][appId] = checked;
 };
 
 btnAdminSave.addEventListener('click', async () => {
     btnAdminSave.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
     btnAdminSave.disabled = true;
+
+    // ESPANSIONE DEI PERMESSI DA GRUPPI A SINGOLI UTENTI
+    // Per garantire la retrocompatibilità totale con le altre app che leggono il foglio PERMESSI_APP,
+    // andiamo a generare una riga per ogni ID_UTENTE e ogni APP disponibile,
+    // applicando il permesso definito a livello di Gruppo.
+    let permessiEstesi = [];
+    let appsDisponibili = adminData.apps.filter(app => app.ATTIVA === true || app.ATTIVA === 'TRUE' || app.ATTIVA === 'Vero');
+
+    adminData.utenti.forEach(u => {
+        appsDisponibili.forEach(a => {
+            let hasPerm = false;
+            if (groupPerms[u.PROFILO] && groupPerms[u.PROFILO][a.ID_APP] !== undefined) {
+                hasPerm = groupPerms[u.PROFILO][a.ID_APP];
+            }
+            permessiEstesi.push({
+                ID_UTENTE: u.ID_UTENTE,
+                ID_APP: a.ID_APP,
+                ABILITATO: hasPerm
+            });
+        });
+    });
 
     try {
         const response = await fetch(API_URL, {
@@ -1130,11 +1260,13 @@ btnAdminSave.addEventListener('click', async () => {
                 utenti_aggiornati: adminData.utenti,
                 apps_aggiornate: adminData.apps,
                 profili_aggiornati: adminData.profili,
-                permessi_aggiornati: adminData.permessi
+                permessi_aggiornati: permessiEstesi
             })
         });
         const data = await response.json();
         if (data.status === 'success') {
+            // Aggiorniamo i permessi locali con quelli appena salvati
+            adminData.permessi = permessiEstesi;
             alert('Salvataggio completato con successo!');
         } else {
             alert('Errore al salvataggio: ' + data.message);
