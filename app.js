@@ -959,7 +959,7 @@ function renderAppsAdmin() {
         document.body.appendChild(datalist);
     }
 
-    const container = document.getElementById('apps-container');
+    const container = document.getElementById('admin-apps-container');
     if (!container) return;
     container.innerHTML = '';
     
@@ -1751,4 +1751,25 @@ async function inviaPausa(btn, min) {
 }
 
 
+
+
+
+window.switchAdminTab = function(tabId) {
+    document.querySelectorAll('.admin-tab-btn').forEach(btn => {
+        if(btn.getAttribute('onclick').includes(tabId)) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    });
+    document.querySelectorAll('.admin-tab-content').forEach(content => {
+        if(content.id === tabId) {
+            content.classList.remove('hidden');
+            content.classList.add('active');
+        } else {
+            content.classList.add('hidden');
+            content.classList.remove('active');
+        }
+    });
+};
 

@@ -107,59 +107,67 @@
             </div>
 
             <div id="admin-content" class="admin-dashboard hidden">
-                <!-- Sezione Monitoraggio -->
-                <div class="admin-section glass">
-                    <div class="admin-section-header">
-                        <h3><i class="fa-solid fa-chart-line"></i> Monitoraggio Accessi (30gg)</h3>
-                    </div>
-                    <div id="monitoraggio-container" class="admin-cards-container">
-                        <!-- Dinamico -->
+                <div class="admin-tabs-nav">
+                    <button class="admin-tab-btn active" onclick="switchAdminTab('tab-monitoraggio')"><i class="fa-solid fa-chart-line"></i> Monitoraggio</button>
+                    <button class="admin-tab-btn" onclick="switchAdminTab('tab-utenti')"><i class="fa-solid fa-users"></i> Utenti & Gruppi</button>
+                    <button class="admin-tab-btn" onclick="switchAdminTab('tab-apps')"><i class="fa-solid fa-cubes"></i> Web App</button>
+                    <button class="admin-tab-btn" onclick="switchAdminTab('tab-permessi')"><i class="fa-solid fa-key"></i> Permessi</button>
+                </div>
+
+                <!-- TAB MONITORAGGIO -->
+                <div id="tab-monitoraggio" class="admin-tab-content active">
+                    <div class="admin-section glass">
+                        <div class="admin-section-header">
+                            <h3><i class="fa-solid fa-chart-line"></i> Monitoraggio Accessi (30gg)</h3>
+                        </div>
+                        <div id="monitoraggio-container" class="admin-cards-container">
+                        </div>
                     </div>
                 </div>
 
-                <!-- Sezione Permessi a Gruppi -->
-                <div class="admin-section glass">
-                    <div class="admin-section-header">
-                        <h3><i class="fa-solid fa-key"></i> Permessi Gruppi</h3>
+                <!-- TAB UTENTI E GRUPPI -->
+                <div id="tab-utenti" class="admin-tab-content hidden">
+                    <div class="admin-section glass">
+                        <div class="admin-section-header">
+                            <h3><i class="fa-solid fa-users"></i> Gestione Utenti</h3>
+                            <button id="btn-add-user" class="btn-secondary-small"><i class="fa-solid fa-plus"></i> Nuovo Utente</button>
+                        </div>
+                        <div id="utenti-container" class="admin-cards-container">
+                        </div>
                     </div>
-                    <div id="permessi-container" class="admin-cards-container">
-                        <!-- Dinamico -->
-                    </div>
-                </div>
-
-                <!-- Sezione Utenti -->
-                <div class="admin-section glass">
-                    <div class="admin-section-header">
-                        <h3><i class="fa-solid fa-users"></i> Gestione Utenti</h3>
-                        <button id="btn-add-user" class="btn-secondary-small"><i class="fa-solid fa-plus"></i> Nuovo Utente</button>
-                    </div>
-                    <div id="utenti-container" class="admin-cards-container">
-                        <!-- Dinamico -->
-                    </div>
-                </div>
-
-                <!-- Sezione Web Apps -->
-                <div class="admin-section glass">
-                    <div class="admin-section-header">
-                        <h3><i class="fa-solid fa-cubes"></i> Gestione Web App</h3>
-                        <button id="btn-add-app" class="btn-secondary-small"><i class="fa-solid fa-plus"></i> Nuova App</button>
-                    </div>
-                    <div id="apps-container" class="admin-cards-container">
-                        <!-- Dinamico -->
-                    </div>
-                    <div style="margin-top: 10px; font-size: 13px; color: var(--text-muted); text-align:center;">
-                        * Delega Procedure: apri foglio UTENTI e imposta VERO su CAN_EDIT_PROCEDURE.
+                    <div class="admin-section glass" style="margin-top: 20px;">
+                        <div class="admin-section-header">
+                            <h3><i class="fa-solid fa-tags"></i> Gestione Gruppi</h3>
+                            <button id="btn-add-group" class="btn-secondary-small"><i class="fa-solid fa-plus"></i> Nuovo Gruppo</button>
+                        </div>
+                        <div id="gruppi-container" class="admin-cards-container">
+                        </div>
                     </div>
                 </div>
 
-                <!-- Sezione Gruppi (Profili) -->
-                <div class="admin-section glass">
-                    <div class="admin-section-header">
-                        <h3><i class="fa-solid fa-tags"></i> Gestione Gruppi</h3>
-                        <button id="btn-add-group" class="btn-secondary-small"><i class="fa-solid fa-plus"></i> Nuovo Gruppo</button>
+                <!-- TAB WEB APP -->
+                <div id="tab-apps" class="admin-tab-content hidden">
+                    <div class="admin-section glass">
+                        <div class="admin-section-header">
+                            <h3><i class="fa-solid fa-cubes"></i> Gestione Web App</h3>
+                            <button id="btn-add-app" class="btn-secondary-small"><i class="fa-solid fa-plus"></i> Nuova App</button>
+                        </div>
+                        <div id="admin-apps-container" class="admin-cards-container">
+                        </div>
+                        <div style="margin-top: 10px; font-size: 13px; color: var(--text-muted); text-align:center;">
+                            * Delega Procedure: apri foglio UTENTI e imposta VERO su CAN_EDIT_PROCEDURE.
+                        </div>
                     </div>
-                    <div id="gruppi-container" class="admin-cards-container">
-                        <!-- Dinamico -->
+                </div>
+
+                <!-- TAB PERMESSI -->
+                <div id="tab-permessi" class="admin-tab-content hidden">
+                    <div class="admin-section glass">
+                        <div class="admin-section-header">
+                            <h3><i class="fa-solid fa-key"></i> Permessi Gruppi</h3>
+                        </div>
+                        <div id="permessi-container" class="admin-cards-container">
+                        </div>
                     </div>
                 </div>
             </div>
