@@ -668,7 +668,8 @@ async function loadAdminData() {
                 profili: data.profili,
                 apps: data.apps,
                 permessi: data.permessi,
-                dipendentiDisponibili: data.dipendentiDisponibili || []
+                dipendentiDisponibili: data.dipendentiDisponibili || [],
+                log_accessi: data.log_accessi || []
             };
             renderAdminDashboard();
         } else {
