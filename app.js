@@ -23,6 +23,118 @@ const appIframe = document.getElementById('app-iframe');
 const iframeTitle = document.getElementById('iframe-title');
 const btnCloseIframe = document.getElementById('btn-close-iframe');
 
+// Scanner CURIT eseguito nel documento PWA di primo livello: evita i limiti
+// della fotocamera negli iframe HtmlService e restituisce il risultato al
+// Cruscotto Tecnico tramite postMessage.
+const CURIT_VERIFY_BACKEND = 'https://script.google.com/a/macros/idroclimaservicemilano.it/s/AKfycbxF94UUXTqrScpeZ7SSQ-YtkPkDURFbZgf4HXQut3i8a0-rXNfRh9K5DAV08d9FJeMOKw/exec';
+const curitScanner = {
+    overlay: document.getElementById('curit-scanner-overlay'),
+    video: document.getElementById('curit-scanner-video'),
+    canvas: document.getElementById('curit-scanner-canvas'),
+    status: document.getElementById('curit-scanner-status'),
+    manual: document.getElementById('curit-scanner-manual'),
+    stream: null,
+    running: false,
+    requester: null,
+    lastDecodeAt: 0
+};
+
+window.addEventListener('message', event => {
+    if (!event.data || event.data.type !== 'IDROCLIMA_CURIT_SCAN_REQUEST') return;
+    curitScanner.requester = event.source;
+    openCuritScanner();
+});
+
+document.getElementById('curit-scanner-close')?.addEventListener('click', closeCuritScanner);
+document.getElementById('curit-scanner-verify')?.addEventListener('click', () => {
+    const tag = extractCuritTag(curitScanner.manual?.value || '');
+    if (!tag) return setCuritScannerStatus('Targa non valida: servono 16 caratteri alfanumerici.');
+    verifyCuritTag(tag);
+});
+
+async function openCuritScanner() {
+    curitScanner.overlay?.classList.remove('hidden');
+    setCuritScannerStatus('Avvio fotocamera…');
+    try {
+        curitScanner.stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});
+        curitScanner.video.srcObject = curitScanner.stream;
+        await curitScanner.video.play();
+        curitScanner.running = true;
+        setCuritScannerStatus('Inquadra il QR della targa CURIT.');
+        requestAnimationFrame(scanCuritFrame);
+    } catch (error) {
+        setCuritScannerStatus('Fotocamera non disponibile. Inserisci manualmente la targa riportata sull’adesivo.');
+    }
+}
+
+function closeCuritScanner() {
+    curitScanner.running = false;
+    if (curitScanner.stream) curitScanner.stream.getTracks().forEach(track => track.stop());
+    curitScanner.stream = null;
+    if (curitScanner.video) curitScanner.video.srcObject = null;
+    curitScanner.overlay?.classList.add('hidden');
+}
+
+function scanCuritFrame(timestamp) {
+    if (!curitScanner.running) return;
+    if (timestamp - curitScanner.lastDecodeAt > 180 && curitScanner.video.readyState >= 2) {
+        curitScanner.lastDecodeAt = timestamp;
+        const canvas = curitScanner.canvas, video = curitScanner.video;
+        const maxWidth = 1280, scale = Math.min(1, maxWidth / video.videoWidth);
+        canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
+        canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
+        const ctx = canvas.getContext('2d', {willReadFrequently:true});
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        try {
+            const image = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const decoded = window.jsQR ? window.jsQR(image.data, image.width, image.height, {inversionAttempts:'attemptBoth'}) : null;
+            const tag = decoded && extractCuritTag(decoded.data);
+            if (tag) {
+                curitScanner.running = false;
+                if (navigator.vibrate) navigator.vibrate(120);
+                verifyCuritTag(tag);
+                return;
+            }
+        } catch (_) {}
+    }
+    requestAnimationFrame(scanCuritFrame);
+}
+
+function extractCuritTag(value) {
+    const text = String(value || '').trim().toUpperCase();
+    let match = text.match(/[?&]TARGA=([A-Z0-9]{16})(?:&|$)/i);
+    if (match) return match[1].toUpperCase();
+    match = text.match(/\b[A-Z0-9]{16}\b/);
+    return match ? match[0] : '';
+}
+
+function setCuritScannerStatus(message) {
+    if (curitScanner.status) curitScanner.status.textContent = message;
+}
+
+function verifyCuritTag(tag) {
+    setCuritScannerStatus(`Verifica CURIT ${tag}…`);
+    const callback = 'curitPwaCb_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+    const script = document.createElement('script');
+    const timer = setTimeout(() => finish(new Error('Il servizio CURIT non ha risposto.')), 20000);
+    function cleanup() { clearTimeout(timer); delete window[callback]; script.remove(); }
+    function finish(error, result) {
+        cleanup();
+        if (error || !result || !result.ok) {
+            curitScanner.running = false;
+            setCuritScannerStatus((error && error.message) || (result && result.message) || 'Targa non verificata.');
+            return;
+        }
+        closeCuritScanner();
+        const target = curitScanner.requester || (appIframe && appIframe.contentWindow);
+        if (target) target.postMessage({type:'IDROCLIMA_CURIT_SCAN_RESULT', result}, '*');
+    }
+    window[callback] = result => finish(null, result);
+    script.onerror = () => finish(new Error('Impossibile raggiungere il servizio di verifica CURIT.'));
+    script.src = `${CURIT_VERIFY_BACKEND}?action=verify&targa=${encodeURIComponent(tag)}&callback=${encodeURIComponent(callback)}&_=${Date.now()}`;
+    document.head.appendChild(script);
+}
+
 // Elementi Admin
 const adminScreen = document.getElementById('admin-screen');
 const btnAdminBack = document.getElementById('btn-admin-back');
