@@ -41,8 +41,17 @@ const curitScanner = {
 };
 
 window.addEventListener('message', event => {
-    if (!event.data || event.data.type !== 'IDROCLIMA_CURIT_SCAN_REQUEST') return;
+    if (!event.data || !['IDROCLIMA_CURIT_SCAN_REQUEST','IDROCLIMA_CURIT_VERIFY_REQUEST'].includes(event.data.type)) return;
     curitScanner.requester = event.source;
+    if (event.data.type === 'IDROCLIMA_CURIT_VERIFY_REQUEST') {
+        const tag = extractCuritTag(event.data.targa || '');
+        curitScanner.overlay?.classList.remove('hidden');
+        if (curitScanner.manual) curitScanner.manual.value = tag || String(event.data.targa || '');
+        if (!tag) return sendCuritResultToRequester_({ok:false,status:'FORMATO_NON_VALIDO',message:'Targa CURIT non valida.'});
+        setCuritScannerStatus(`Verifica CURIT ${tag}…`);
+        verifyCuritTag(tag);
+        return;
+    }
     openCuritScanner();
 });
 
@@ -131,6 +140,13 @@ function closeCuritScanner() {
     curitScanner.overlay?.classList.add('hidden');
 }
 
+function stopCuritCameraStream() {
+    curitScanner.running = false;
+    if (curitScanner.stream) curitScanner.stream.getTracks().forEach(track => track.stop());
+    curitScanner.stream = null;
+    if (curitScanner.video) curitScanner.video.srcObject = null;
+}
+
 function scanCuritFrame(timestamp) {
     if (!curitScanner.running) return;
     if (timestamp - curitScanner.lastDecodeAt > 180 && curitScanner.video.readyState >= 2) {
@@ -146,7 +162,9 @@ function scanCuritFrame(timestamp) {
             const decoded = window.jsQR ? window.jsQR(image.data, image.width, image.height, {inversionAttempts:'attemptBoth'}) : null;
             const tag = decoded && extractCuritTag(decoded.data);
             if (tag) {
-                curitScanner.running = false;
+                stopCuritCameraStream();
+                if (curitScanner.manual) curitScanner.manual.value = tag;
+                setCuritScannerStatus(`QR letto: ${tag}. Verifica automatica…`);
                 if (navigator.vibrate) navigator.vibrate(120);
                 verifyCuritTag(tag);
                 return;
@@ -168,6 +186,11 @@ function setCuritScannerStatus(message) {
     if (curitScanner.status) curitScanner.status.textContent = message;
 }
 
+function sendCuritResultToRequester_(result) {
+    const target = curitScanner.requester || (appIframe && appIframe.contentWindow);
+    if (target) target.postMessage({type:'IDROCLIMA_CURIT_SCAN_RESULT', result}, '*');
+}
+
 function verifyCuritTag(tag) {
     setCuritScannerStatus(`Verifica CURIT ${tag}…`);
     const callback = 'curitPwaCb_' + Date.now() + '_' + Math.random().toString(36).slice(2);
@@ -179,11 +202,11 @@ function verifyCuritTag(tag) {
         if (error || !result || !result.ok) {
             curitScanner.running = false;
             setCuritScannerStatus((error && error.message) || (result && result.message) || 'Targa non verificata.');
+            sendCuritResultToRequester_(result || {ok:false,status:'SERVIZIO_NON_DISPONIBILE',targa:tag,message:(error&&error.message)||'Targa non verificata.'});
             return;
         }
         closeCuritScanner();
-        const target = curitScanner.requester || (appIframe && appIframe.contentWindow);
-        if (target) target.postMessage({type:'IDROCLIMA_CURIT_SCAN_RESULT', result}, '*');
+        sendCuritResultToRequester_(result);
     }
     window[callback] = result => finish(null, result);
     script.onerror = () => finish(new Error('Impossibile raggiungere il servizio di verifica CURIT.'));
