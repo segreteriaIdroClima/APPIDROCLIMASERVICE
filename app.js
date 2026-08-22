@@ -33,6 +33,7 @@ const curitScanner = {
     canvas: document.getElementById('curit-scanner-canvas'),
     status: document.getElementById('curit-scanner-status'),
     manual: document.getElementById('curit-scanner-manual'),
+    photo: document.getElementById('curit-scanner-photo'),
     stream: null,
     running: false,
     requester: null,
@@ -46,6 +47,8 @@ window.addEventListener('message', event => {
 });
 
 document.getElementById('curit-scanner-close')?.addEventListener('click', closeCuritScanner);
+document.getElementById('curit-scanner-photo-button')?.addEventListener('click', openCuritCameraPhoto);
+curitScanner.photo?.addEventListener('change', decodeCuritPhoto);
 document.getElementById('curit-scanner-verify')?.addEventListener('click', () => {
     const tag = extractCuritTag(curitScanner.manual?.value || '');
     if (!tag) return setCuritScannerStatus('Targa non valida: servono 16 caratteri alfanumerici.');
@@ -56,6 +59,7 @@ async function openCuritScanner() {
     curitScanner.overlay?.classList.remove('hidden');
     setCuritScannerStatus('Avvio fotocamera…');
     try {
+        if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) throw new Error('Fotocamera continua non disponibile');
         curitScanner.stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});
         curitScanner.video.srcObject = curitScanner.stream;
         await curitScanner.video.play();
@@ -63,7 +67,59 @@ async function openCuritScanner() {
         setCuritScannerStatus('Inquadra il QR della targa CURIT.');
         requestAnimationFrame(scanCuritFrame);
     } catch (error) {
-        setCuritScannerStatus('Fotocamera non disponibile. Inserisci manualmente la targa riportata sull’adesivo.');
+        setCuritScannerStatus('Scansione continua non disponibile. Si apre la fotocamera del telefono.');
+        openCuritCameraPhoto();
+    }
+}
+
+function openCuritCameraPhoto() {
+    if (!curitScanner.photo) return setCuritScannerStatus('Fotocamera non disponibile. Inserisci manualmente la targa.');
+    curitScanner.photo.value = '';
+    curitScanner.photo.click();
+}
+
+async function curitImageSourceFromFile(file) {
+    if ('createImageBitmap' in window) {
+        try { return await createImageBitmap(file); } catch (_) {}
+    }
+    return await new Promise((resolve, reject) => {
+        const url = URL.createObjectURL(file), image = new Image();
+        image.onload = () => { URL.revokeObjectURL(url); resolve(image); };
+        image.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Immagine non leggibile.')); };
+        image.src = url;
+    });
+}
+
+async function decodeCuritPhoto(event) {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+    setCuritScannerStatus('Lettura del QR dalla fotografia…');
+    try {
+        const bitmap = await curitImageSourceFromFile(file);
+        const sourceWidth = bitmap.width || bitmap.naturalWidth, sourceHeight = bitmap.height || bitmap.naturalHeight;
+        const canvas = curitScanner.canvas, maxSide = 1800, scale = Math.min(1, maxSide / Math.max(sourceWidth, sourceHeight));
+        canvas.width = Math.max(1, Math.round(sourceWidth * scale));
+        canvas.height = Math.max(1, Math.round(sourceHeight * scale));
+        const ctx = canvas.getContext('2d', {willReadFrequently:true});
+        ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+        bitmap.close?.();
+        let raw = '';
+        if ('BarcodeDetector' in window) {
+            try {
+                const found = await new BarcodeDetector({formats:['qr_code']}).detect(canvas);
+                if (found.length) raw = found[0].rawValue || '';
+            } catch (_) {}
+        }
+        if (!raw && window.jsQR) {
+            const image = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const decoded = window.jsQR(image.data, image.width, image.height, {inversionAttempts:'attemptBoth'});
+            if (decoded) raw = decoded.data || '';
+        }
+        const tag = extractCuritTag(raw);
+        if (!tag) throw new Error('QR CURIT non riconosciuto. Riprova evitando riflessi e includendo tutto il codice.');
+        verifyCuritTag(tag);
+    } catch (error) {
+        setCuritScannerStatus(error && error.message ? error.message : 'Impossibile leggere la fotografia.');
     }
 }
 

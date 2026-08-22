@@ -201,6 +201,8 @@
                 <div style="position:absolute;left:12%;right:12%;top:18%;bottom:18%;border:3px solid #22c55e;border-radius:18px;box-shadow:0 0 0 999px #0007;"></div>
             </div>
             <canvas id="curit-scanner-canvas" class="hidden"></canvas>
+            <input id="curit-scanner-photo" class="hidden" type="file" accept="image/*" capture="environment">
+            <button id="curit-scanner-photo-button" class="btn-primary" type="button" style="margin-top:14px;">Fotografa il QR</button>
             <div style="display:flex;gap:8px;margin-top:14px;">
                 <input id="curit-scanner-manual" inputmode="text" autocomplete="off" placeholder="Targa o URL CURIT" style="flex:1;min-width:0;text-transform:uppercase;">
                 <button id="curit-scanner-verify" class="btn-primary" type="button">Verifica</button>
@@ -495,7 +497,7 @@
         </div>
     </div>
 
-    <script src="app.js?v=22"></script>
+    <script src="app.js?v=23"></script>
 </body>
 
 </html>

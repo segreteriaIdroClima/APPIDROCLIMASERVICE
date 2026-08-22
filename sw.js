@@ -1,4 +1,4 @@
-const CACHE_NAME = 'portale-aziendale-v22-curit';
+const CACHE_NAME = 'portale-aziendale-v23-curit';
 const ASSETS_TO_CACHE = [
     './',
     './index.html',
