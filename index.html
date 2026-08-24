@@ -19,7 +19,7 @@
     <!-- Font Awesome per le icone (opzionale, caricato tramite CDN per semplicitÃƒÂ ) -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+    <script src="jsQR.js?v=27"></script>
 </head>
 
 <body>
@@ -202,11 +202,8 @@
             </div>
             <canvas id="curit-scanner-canvas" class="hidden"></canvas>
             <input id="curit-scanner-photo" class="hidden" type="file" accept="image/*" capture="environment">
-            <button id="curit-scanner-photo-button" class="btn-primary" type="button" style="margin-top:14px;">Fotografa il QR</button>
-            <div style="display:flex;gap:8px;margin-top:14px;">
-                <input id="curit-scanner-manual" inputmode="text" autocomplete="off" placeholder="Targa o URL CURIT" style="flex:1;min-width:0;text-transform:uppercase;">
-                <button id="curit-scanner-verify" class="btn-primary" type="button">Verifica</button>
-            </div>
+            <button id="curit-scanner-photo-button" class="btn-primary" type="button" style="display:block;width:100%;min-height:52px;margin-top:14px;">USA UNA FOTO DEL QR</button>
+            <div style="text-align:center;opacity:.72;margin-top:12px;font-size:13px;">Per l’inserimento manuale chiudi lo scanner e usa il campo presente nel modulo.</div>
         </div>
     </div>
 
@@ -497,7 +494,7 @@
         </div>
     </div>
 
-    <script src="app.js?v=25"></script>
+    <script src="app.js?v=27"></script>
 </body>
 
 </html>

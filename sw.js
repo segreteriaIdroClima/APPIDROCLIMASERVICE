@@ -1,9 +1,10 @@
-const CACHE_NAME = 'portale-aziendale-v25-curit';
+const CACHE_NAME = 'portale-aziendale-v27-curit';
 const ASSETS_TO_CACHE = [
     './',
     './index.html',
     './style.css',
     './app.js',
+    './jsQR.js',
     './manifest.json',
     './idroclima-app-192.png',
     './idroclima-app-512.png',

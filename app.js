@@ -26,7 +26,6 @@ const btnCloseIframe = document.getElementById('btn-close-iframe');
 // Scanner CURIT eseguito nel documento PWA di primo livello: evita i limiti
 // della fotocamera negli iframe HtmlService e restituisce il risultato al
 // Cruscotto Tecnico tramite postMessage.
-const CURIT_VERIFY_BACKEND = 'https://script.google.com/a/macros/idroclimaservicemilano.it/s/AKfycbxF94UUXTqrScpeZ7SSQ-YtkPkDURFbZgf4HXQut3i8a0-rXNfRh9K5DAV08d9FJeMOKw/exec';
 const curitScanner = {
     overlay: document.getElementById('curit-scanner-overlay'),
     video: document.getElementById('curit-scanner-video'),
@@ -37,7 +36,9 @@ const curitScanner = {
     stream: null,
     running: false,
     requester: null,
-    lastDecodeAt: 0
+    lastDecodeAt: 0,
+    nativeDetector: null,
+    frameBusy: false
 };
 
 window.addEventListener('message', event => {
@@ -69,15 +70,18 @@ async function openCuritScanner() {
     setCuritScannerStatus('Avvio fotocamera…');
     try {
         if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) throw new Error('Fotocamera continua non disponibile');
-        curitScanner.stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});
+        try {
+            curitScanner.stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});
+        } catch (_) {
+            curitScanner.stream = await navigator.mediaDevices.getUserMedia({video:true,audio:false});
+        }
         curitScanner.video.srcObject = curitScanner.stream;
         await curitScanner.video.play();
         curitScanner.running = true;
         setCuritScannerStatus('Inquadra il QR della targa CURIT.');
         requestAnimationFrame(scanCuritFrame);
     } catch (error) {
-        setCuritScannerStatus('Scansione continua non disponibile. Si apre la fotocamera del telefono.');
-        openCuritCameraPhoto();
+        setCuritScannerStatus('Scansione continua non disponibile. Tocca “Fotografa il QR” oppure inserisci la targa manualmente.');
     }
 }
 
@@ -147,9 +151,10 @@ function stopCuritCameraStream() {
     if (curitScanner.video) curitScanner.video.srcObject = null;
 }
 
-function scanCuritFrame(timestamp) {
+async function scanCuritFrame(timestamp) {
     if (!curitScanner.running) return;
-    if (timestamp - curitScanner.lastDecodeAt > 180 && curitScanner.video.readyState >= 2) {
+    if (!curitScanner.frameBusy && timestamp - curitScanner.lastDecodeAt > 180 && curitScanner.video.readyState >= 2) {
+        curitScanner.frameBusy = true;
         curitScanner.lastDecodeAt = timestamp;
         const canvas = curitScanner.canvas, video = curitScanner.video;
         const maxWidth = 1280, scale = Math.min(1, maxWidth / video.videoWidth);
@@ -158,9 +163,20 @@ function scanCuritFrame(timestamp) {
         const ctx = canvas.getContext('2d', {willReadFrequently:true});
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         try {
-            const image = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            const decoded = window.jsQR ? window.jsQR(image.data, image.width, image.height, {inversionAttempts:'attemptBoth'}) : null;
-            const tag = decoded && extractCuritTag(decoded.data);
+            let raw = '';
+            if ('BarcodeDetector' in window) {
+                try {
+                    curitScanner.nativeDetector = curitScanner.nativeDetector || new BarcodeDetector({formats:['qr_code']});
+                    const found = await curitScanner.nativeDetector.detect(canvas);
+                    if (found.length) raw = found[0].rawValue || '';
+                } catch (_) {}
+            }
+            if (!raw && window.jsQR) {
+                const image = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const decoded = window.jsQR(image.data, image.width, image.height, {inversionAttempts:'attemptBoth'});
+                if (decoded) raw = decoded.data || '';
+            }
+            const tag = extractCuritTag(raw);
             if (tag) {
                 stopCuritCameraStream();
                 if (curitScanner.manual) curitScanner.manual.value = tag;
@@ -170,6 +186,7 @@ function scanCuritFrame(timestamp) {
                 return;
             }
         } catch (_) {}
+        finally { curitScanner.frameBusy = false; }
     }
     requestAnimationFrame(scanCuritFrame);
 }
@@ -192,26 +209,10 @@ function sendCuritResultToRequester_(result) {
 }
 
 function verifyCuritTag(tag) {
-    setCuritScannerStatus(`Verifica CURIT ${tag}…`);
-    const callback = 'curitPwaCb_' + Date.now() + '_' + Math.random().toString(36).slice(2);
-    const script = document.createElement('script');
-    const timer = setTimeout(() => finish(new Error('Il servizio CURIT non ha risposto.')), 20000);
-    function cleanup() { clearTimeout(timer); delete window[callback]; script.remove(); }
-    function finish(error, result) {
-        cleanup();
-        if (error || !result || !result.ok) {
-            curitScanner.running = false;
-            setCuritScannerStatus((error && error.message) || (result && result.message) || 'Targa non verificata.');
-            sendCuritResultToRequester_(result || {ok:false,status:'SERVIZIO_NON_DISPONIBILE',targa:tag,message:(error&&error.message)||'Targa non verificata.'});
-            return;
-        }
-        closeCuritScanner();
-        sendCuritResultToRequester_(result);
-    }
-    window[callback] = result => finish(null, result);
-    script.onerror = () => finish(new Error('Impossibile raggiungere il servizio di verifica CURIT.'));
-    script.src = `${CURIT_VERIFY_BACKEND}?action=verify&targa=${encodeURIComponent(tag)}&callback=${encodeURIComponent(callback)}&_=${Date.now()}`;
-    document.head.appendChild(script);
+    const canonical = extractCuritTag(tag);
+    if (!canonical) return setCuritScannerStatus('Targa CURIT non valida.');
+    closeCuritScanner();
+    sendCuritResultToRequester_({ok:true,decodedOnly:true,targa:canonical,checkedAt:new Date().toISOString()});
 }
 
 // Elementi Admin
