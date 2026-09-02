@@ -1826,8 +1826,22 @@ function showForm(id) {
     }
     
     document.getElementById('form-' + id).classList.remove('hidden');
+    if (id === 'mezzi') loadActiveMezzi_();
     document.getElementById('menu').classList.add('hidden');
     moduliRapidiScreen.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+async function loadActiveMezzi_() {
+    const select = document.getElementById('mez_targa');
+    if (!select || select.dataset.loaded === '1') return;
+    select.innerHTML = '<option value="">Caricamento mezzi...</option>';
+    try {
+        const response = await fetch(API_URL, {method:'POST', body:JSON.stringify({action:'GET_ACTIVE_MEZZI'})});
+        const data = await response.json();
+        if (data.status !== 'success') throw new Error(data.message || 'Errore caricamento');
+        select.innerHTML = '<option value="">-- Seleziona il mezzo --</option>' + (data.mezzi || []).map(m => `<option value="${String(m.targa).replace(/"/g,'&quot;')}">${m.label}</option>`).join('');
+        select.dataset.loaded = '1';
+    } catch (e) { select.innerHTML = '<option value="">Mezzi non disponibili</option>'; }
 }
 
 function goMenu() {
