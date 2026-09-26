@@ -1,4 +1,4 @@
-const CACHE_NAME = 'portale-aziendale-v32-accesso-rapido';
+const CACHE_NAME = 'portale-aziendale-v33-sessione-mobile';
 const ASSETS_TO_CACHE = [
     './',
     './index.html',

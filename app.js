@@ -308,8 +308,7 @@ function showLoginScreen() {
 }
 
 async function showHomeScreen(accessVerified = false) {
-    homeScreen.classList.add('hidden');
-    if (!accessVerified && !await validateCurrentAccess()) return;
+    // GET_USER_DATA performs the server check too: restore needs only one request.
     loginScreen.classList.add('hidden');
     homeScreen.classList.remove('hidden');
     userGreeting.textContent = `Ciao, ${currentUser.nome}`;
@@ -415,14 +414,12 @@ async function loadApps() {
         if (data.status === 'success') {
             renderApps(data.apps);
         } else {
-            alert("Errore nel caricamento delle app: " + data.message);
-            if (data.message === 'Utente non attivo.' || data.message.includes('non attivo')) {
-                btnLogout.click();
-            }
+            if (currentUser) showConnectionStatus(data.message || 'Impossibile caricare le app. Riprova.');
+
         }
     } catch (error) {
         console.error("Errore fetch app:", error);
-        alert("Errore di rete durante il caricamento delle app.");
+        if (currentUser) showConnectionStatus('Connessione momentaneamente non disponibile. Il tuo accesso è conservato. Riprova.');
     } finally {
         loadingApps.classList.add('hidden');
     }
@@ -519,6 +516,7 @@ function renderApps(apps) {
             `;
         }
 
+        bindAppTap(card);
         appsContainer.appendChild(card);
     });
 
@@ -539,8 +537,24 @@ function renderApps(apps) {
             </div>
             <div class="app-title">Area Admin</div>
         `;
+        bindAppTap(adminCard);
         appsContainer.appendChild(adminCard);
     }
+}
+
+function bindAppTap(card) {
+    let start=null,lastTouch=0;
+    const open=card.onclick;
+    card.addEventListener('pointerdown',event=>{
+        if(event.pointerType==='touch')start={x:event.clientX,y:event.clientY};
+    });
+    card.addEventListener('pointercancel',()=>start=null);
+    card.addEventListener('pointerup',event=>{
+        const first=start;start=null;
+        if(event.pointerType!=='touch'||!first||Math.hypot(event.clientX-first.x,event.clientY-first.y)>12)return;
+        event.preventDefault();lastTouch=Date.now();open(event);
+    });
+    card.onclick=event=>{if(Date.now()-lastTouch<700){event.preventDefault();return;}return open(event);};
 }
 
 // Logica Transizione Premium
@@ -1816,7 +1830,7 @@ const accessNetworkFetch = window.fetch.bind(window);
 let accessCheckInFlight = null;
 let accessValidatedAt = 0, accessValidatedToken = '';
 function markAccessValidated(token) {accessValidatedToken=token;accessValidatedAt=Date.now();}
-const ACCESS_DENIED_CODES = ['INACTIVITY','NOT_IN_ROSTER','BADGE_REASSIGNED','ACCOUNT_DISABLED','ACCOUNT_REMOVED','SESSION_INVALID','ACCESS_CHECK_FAILED'];
+const ACCESS_DENIED_CODES = ['INACTIVITY','NOT_IN_ROSTER','BADGE_REASSIGNED','ACCOUNT_DISABLED','ACCOUNT_REMOVED','SESSION_INVALID'];
 function closeProtectedScreens() {
     for (const id of ['home-screen','iframe-screen','drive-viewer-screen','timbrature-screen','admin-screen','monitor-screen','moduli-rapidi-screen']) {
         const element = document.getElementById(id); if (element) element.classList.add('hidden');
@@ -1828,8 +1842,22 @@ function closeProtectedScreens() {
     if (typeof closeCuritScanner === 'function') closeCuritScanner();
     document.body.classList.remove('fullscreen-active');
 }
+function showConnectionStatus(message) {
+    const banner=document.getElementById('portal-connection-status');
+    if(!banner)return;
+    banner.querySelector('span').textContent=message;banner.classList.remove('hidden');
+}
+function hideConnectionStatus() {
+    document.getElementById('portal-connection-status')?.classList.add('hidden');
+}
+document.getElementById('portal-connection-retry')?.addEventListener('click',async()=>{
+    if (!currentUser)return;
+    if(homeScreen.classList.contains('hidden'))await validateCurrentAccess(true);else await loadApps();
+});
+
 function revokeCurrentAccess(message) {
     localStorage.removeItem('portale_session'); currentUser = null;
+    hideConnectionStatus();
     closeProtectedScreens(); showLoginScreen();
     loginError.textContent = message || 'Accesso revocato. Accedi nuovamente.';
     loginError.classList.remove('hidden');
@@ -1838,11 +1866,16 @@ async function authenticatedFetch(url, options = {}) {
     const payload = JSON.parse(options.body || '{}');
     const token = currentUser && currentUser.sessionToken;
     if (payload.action !== 'LOGIN') payload.sessionToken = token || '';
-    const response = await accessNetworkFetch(url,{...options,body:JSON.stringify(payload)});
+    let response;
+    const mayRetry = ['LOGIN','CHECK_ACCESS','GET_USER_DATA','GET_MY_TIMBRATURE','GET_DRIVE_FILES','GET_ACTIVE_MEZZI'].includes(payload.action);
+    for (let attempt=0;attempt<2;attempt++) {
+        try {response=await accessNetworkFetch(url,{...options,body:JSON.stringify(payload)});break;}
+        catch(error) {if (!mayRetry || attempt===1) throw error;await new Promise(resolve=>setTimeout(resolve,400));}
+    }
     const result = await response.clone().json();
     if (payload.action !== 'LOGIN' && result.status === 'success' && (!currentUser || currentUser.sessionToken !== token)) throw new Error('Sessione chiusa durante la richiesta.');
     if (ACCESS_DENIED_CODES.includes(result.code) && currentUser && currentUser.sessionToken === token) revokeCurrentAccess(result.message);
-    if (payload.action !== 'LOGIN' && result.status === 'success' && currentUser && currentUser.sessionToken === token) markAccessValidated(token);
+    if (payload.action !== 'LOGIN' && result.status === 'success' && currentUser && currentUser.sessionToken === token) {markAccessValidated(token);hideConnectionStatus();}
     return response;
 }
 async function validateCurrentAccess(force = false) {
@@ -1859,13 +1892,14 @@ async function validateCurrentAccess(force = false) {
                     const message = result.message === 'Azione non valida.'
                         ? 'Il backend Apps Script non è aggiornato. Pubblica una nuova versione della distribuzione usata dalla PWA.'
                         : result.message || 'Impossibile verificare l’accesso. Riprova tra poco.';
-                    revokeCurrentAccess(message);
+                    if (ACCESS_DENIED_CODES.includes(result.code)) revokeCurrentAccess(message);
+                    else showConnectionStatus(message);
                 }
                 return false;
             }
             return result.status === 'success' && !!currentUser && currentUser.sessionToken === token;
         } catch(e) {
-            if (currentUser && currentUser.sessionToken === token) revokeCurrentAccess('Impossibile verificare l’accesso. Controlla la connessione e accedi nuovamente.');
+            if (currentUser && currentUser.sessionToken === token) showConnectionStatus('Verifica temporaneamente non disponibile. Accesso conservato: controlla la connessione e riprova.');
             return false;
         }
     })();

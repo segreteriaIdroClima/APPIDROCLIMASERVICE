@@ -1183,3 +1183,10 @@ input:checked+.slider:before {
  #admin-screen .admin-toolbar {gap:8px;}
  #admin-screen .admin-toolbar > span {flex-basis:100%;}
 }
+.app-card, .btn-icon, button {touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
+.transition-clone {will-change:transform,opacity;}
+#portal-connection-status {position:fixed;bottom:12px;left:12px;right:12px;z-index:11000;display:flex;align-items:center;gap:12px;background:#17243b;border:1px solid #64748b;border-radius:12px;padding:12px;color:#fff;font-size:14px;box-shadow:0 4px 20px #0004;}
+#portal-connection-status.hidden {display:none;}
+#portal-connection-status span {flex:1;}
+#portal-connection-status button {padding:10px 14px;border:0;border-radius:8px;background:var(--primary-color);color:#fff;cursor:pointer;}
+@media (pointer:coarse) {#transition-overlay {backdrop-filter:none;-webkit-backdrop-filter:none;}}
