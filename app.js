@@ -302,8 +302,9 @@ function init() {
     // Controlla se c'Ã¨ una sessione salvata
     const session = localStorage.getItem('portale_session');
     if (session) {
-        currentUser = JSON.parse(session);
-        showHomeScreen();
+        try { currentUser = JSON.parse(session); } catch(e) { currentUser = null; }
+        if (currentUser && currentUser.sessionToken) showHomeScreen();
+        else { localStorage.removeItem('portale_session'); currentUser = null; showLoginScreen(); }
     } else {
         showLoginScreen();
     }
@@ -318,7 +319,9 @@ function showLoginScreen() {
     passwordInput.value = '';
 }
 
-function showHomeScreen() {
+async function showHomeScreen() {
+    homeScreen.classList.add('hidden');
+    if (!await validateCurrentAccess()) return;
     loginScreen.classList.add('hidden');
     homeScreen.classList.remove('hidden');
     userGreeting.textContent = `Ciao, ${currentUser.nome}`;
@@ -367,7 +370,7 @@ loginForm.addEventListener('submit', async (e) => {
     const password = passwordInput.value.trim();
 
     try {
-        const response = await fetch(API_URL, {
+        const response = await authenticatedFetch(API_URL, {
             method: 'POST',
             body: JSON.stringify({
                 action: 'LOGIN',
@@ -380,7 +383,7 @@ loginForm.addEventListener('submit', async (e) => {
 
         if (data.status === 'success') {
             // Salva sessione in localStorage
-            currentUser = data.user;
+            currentUser = {...data.user, sessionToken:data.token};
             localStorage.setItem('portale_session', JSON.stringify(currentUser));
             showHomeScreen();
         } else {
@@ -399,6 +402,7 @@ loginForm.addEventListener('submit', async (e) => {
 btnLogout.addEventListener('click', () => {
     localStorage.removeItem('portale_session');
     currentUser = null;
+    closeProtectedScreens();
     showLoginScreen();
 });
 
@@ -408,7 +412,7 @@ async function loadApps() {
     loadingApps.classList.remove('hidden');
 
     try {
-        const response = await fetch(API_URL, {
+        const response = await authenticatedFetch(API_URL, {
             method: 'POST',
             body: JSON.stringify({
                 action: 'GET_USER_DATA',
@@ -448,12 +452,13 @@ function renderApps(apps) {
         card.href = '#';
 
         if (app.isAllowed) {
-            card.onclick = (e) => {
+            card.onclick = async (e) => {
                 e.preventDefault();
+                if (!await validateCurrentAccess()) return;
                 const targetUrl = app.link;
                 const targetName = app.nome;
 
-                fetch(API_URL, {
+                authenticatedFetch(API_URL, {
                     method: 'POST',
                     body: JSON.stringify({
                         action: 'LOG_APP_OPEN',
@@ -712,7 +717,7 @@ if (btnCloseTimbrature) {
 
 async function fetchMyTimbrature() {
     try {
-        const response = await fetch(API_URL, {
+        const response = await authenticatedFetch(API_URL, {
             method: 'POST',
             body: JSON.stringify({
                 action: 'GET_MY_TIMBRATURE',
@@ -844,7 +849,7 @@ async function loadAdminData() {
     adminContent.classList.add('hidden');
 
     try {
-        const response = await fetch(API_URL, {
+        const response = await authenticatedFetch(API_URL, {
             method: 'POST',
             body: JSON.stringify({
                 action: 'GET_ADMIN_DATA',
@@ -970,7 +975,7 @@ async function loadMonitorData() {
     monitorContent.classList.add('hidden');
 
     try {
-        const response = await fetch(API_URL, {
+        const response = await authenticatedFetch(API_URL, {
             method: 'POST',
             body: JSON.stringify({ action: 'GET_MONITOR_DATA', profile: currentUser.profilo })
         });
@@ -1096,6 +1101,7 @@ function renderUtenti() {
         card.innerHTML = `
             <div class="admin-card-header">
                 <span><i class="fa-solid fa-user"></i> ${u.NOME || 'Nuovo'} (${u.ID_UTENTE})</span>
+                <button class="btn-primary" onclick="resendEmployeeInvite(${i}, this)">Reinvia invito</button>
                 <button class="btn-danger-small" onclick="removeUtente(${i})"><i class="fa-solid fa-trash"></i></button>
             </div>
             <div class="admin-card-body">
@@ -1445,7 +1451,7 @@ btnAdminSave.addEventListener('click', async () => {
     });
 
     try {
-        const response = await fetch(API_URL, {
+        const response = await authenticatedFetch(API_URL, {
             method: 'POST',
             body: JSON.stringify({
                 action: 'SAVE_ADMIN_DATA',
@@ -1473,7 +1479,6 @@ btnAdminSave.addEventListener('click', async () => {
 });
 
 // Avvia app
-init();
 
 // ================= DRIVE VIEWER & KEYWORDS LOGIC =================
 
@@ -1534,7 +1539,7 @@ if (btnCloseDriveViewer) {
 
 async function fetchDriveFiles(type) {
     try {
-        const response = await fetch(API_URL, {
+        const response = await authenticatedFetch(API_URL, {
             method: 'POST',
             body: JSON.stringify({
                 action: 'GET_DRIVE_FILES',
@@ -1730,7 +1735,7 @@ if (btnSaveKeywords) {
         btnSaveKeywords.disabled = true;
 
         try {
-            const response = await fetch(API_URL, {
+            const response = await authenticatedFetch(API_URL, {
                 method: 'POST',
                 body: JSON.stringify({
                     action: 'SAVE_PROCEDURE_KEYWORDS',
@@ -1836,7 +1841,7 @@ async function loadActiveMezzi_() {
     if (!select || select.dataset.loaded === '1') return;
     select.innerHTML = '<option value="">Caricamento mezzi...</option>';
     try {
-        const response = await fetch(API_URL, {method:'POST', body:JSON.stringify({action:'GET_ACTIVE_MEZZI'})});
+        const response = await authenticatedFetch(API_URL, {method:'POST', body:JSON.stringify({action:'GET_ACTIVE_MEZZI'})});
         const data = await response.json();
         if (data.status !== 'success') throw new Error(data.message || 'Errore caricamento');
         select.innerHTML = '<option value="">-- Seleziona il mezzo --</option>' + (data.mezzi || []).map(m => `<option value="${String(m.targa).replace(/"/g,'&quot;')}">${m.label}</option>`).join('');
@@ -1884,7 +1889,7 @@ function getBase64(file) {
 
 async function sendModuloRequest(moduloType, payload, btn) {
     try {
-        const response = await fetch(API_URL, {
+        const response = await authenticatedFetch(API_URL, {
             method: 'POST',
             body: JSON.stringify({
                 action: 'SUBMIT_MODULO',
@@ -1987,3 +1992,68 @@ window.navigateFolder = function(id, name) {
     fetchDriveFiles(currentDriveType, id, name);
 };
 
+
+async function resendEmployeeInvite(index, button) {
+  const user = adminData.utenti[index];
+  if (!user) return;
+  button.disabled = true;
+  try {
+    const response = await authenticatedFetch(API_URL, {method:'POST',body:JSON.stringify({action:'RESEND_EMPLOYEE_INVITE',adminUserId:currentUser.id || currentUser.ID_UTENTE,employeeId:user.ID_UTENTE})});
+    const result = await response.json();
+    alert(result.message || (result.status === 'success' ? 'Invito inviato' : 'Invio fallito'));
+  } catch(e) {alert('Invio fallito: ' + e.message);} finally {button.disabled=false;}
+}
+
+
+const accessNetworkFetch = window.fetch.bind(window);
+let accessCheckInFlight = null;
+const ACCESS_DENIED_CODES = ['INACTIVITY','NOT_IN_ROSTER','BADGE_REASSIGNED','ACCOUNT_DISABLED','ACCOUNT_REMOVED','SESSION_INVALID','ACCESS_CHECK_FAILED'];
+function closeProtectedScreens() {
+    for (const id of ['home-screen','iframe-screen','drive-viewer-screen','timbrature-screen','admin-screen','monitor-screen','moduli-rapidi-screen']) {
+        const element = document.getElementById(id); if (element) element.classList.add('hidden');
+    }
+    homeScreen.classList.add('hidden'); adminScreen.classList.add('hidden');
+    appIframe.src = 'about:blank';
+    appsContainer.innerHTML = '';
+    adminData = null;
+    if (typeof closeCuritScanner === 'function') closeCuritScanner();
+    document.body.classList.remove('fullscreen-active');
+}
+function revokeCurrentAccess(message) {
+    localStorage.removeItem('portale_session'); currentUser = null;
+    closeProtectedScreens(); showLoginScreen();
+    loginError.textContent = message || 'Accesso revocato. Accedi nuovamente.';
+    loginError.classList.remove('hidden');
+}
+async function authenticatedFetch(url, options = {}) {
+    const payload = JSON.parse(options.body || '{}');
+    const token = currentUser && currentUser.sessionToken;
+    if (payload.action !== 'LOGIN') payload.sessionToken = token || '';
+    const response = await accessNetworkFetch(url,{...options,body:JSON.stringify(payload)});
+    const result = await response.clone().json();
+    if (payload.action !== 'LOGIN' && result.status === 'success' && (!currentUser || currentUser.sessionToken !== token)) throw new Error('Sessione chiusa durante la richiesta.');
+    if (ACCESS_DENIED_CODES.includes(result.code) && currentUser && currentUser.sessionToken === token) revokeCurrentAccess(result.message);
+    return response;
+}
+async function validateCurrentAccess() {
+    if (!currentUser || !currentUser.sessionToken) return false;
+    if (accessCheckInFlight) return accessCheckInFlight;
+    const token = currentUser.sessionToken;
+    accessCheckInFlight = (async () => {
+        try {
+            const response = await authenticatedFetch(API_URL,{method:'POST',body:JSON.stringify({action:'CHECK_ACCESS'})});
+            const result = await response.json();
+            return result.status === 'success' && !!currentUser && currentUser.sessionToken === token;
+        } catch(e) {
+            if (currentUser && currentUser.sessionToken === token) revokeCurrentAccess('Impossibile verificare l’accesso. Controlla la connessione e accedi nuovamente.');
+            return false;
+        }
+    })();
+    try {return await accessCheckInFlight;} finally {accessCheckInFlight=null;}
+}
+setInterval(() => {if (currentUser && !document.hidden) validateCurrentAccess();},60000);
+document.addEventListener('visibilitychange',() => {if (!document.hidden && currentUser) validateCurrentAccess();});
+window.addEventListener('focus',() => {if (currentUser) validateCurrentAccess();});
+window.addEventListener('storage',event => {if (event.key === 'portale_session' && !event.newValue && currentUser) revokeCurrentAccess('Sessione chiusa. Accedi nuovamente.');});
+
+init();
