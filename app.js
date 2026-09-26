@@ -227,18 +227,6 @@ const adminContent = document.getElementById('admin-content');
 const transitionOverlay = document.getElementById('transition-overlay');
 const transitionIconContainer = document.getElementById('transition-icon-container');
 
-// Elementi Monitor
-const monitorScreen = document.getElementById('monitor-screen');
-const btnMonitorBack = document.getElementById('btn-monitor-back');
-const monitorLoading = document.getElementById('monitor-loading');
-const monitorContent = document.getElementById('monitor-content');
-const monitorBody = document.getElementById('monitor-body');
-const monitorLastUpdated = document.getElementById('monitor-last-updated');
-const toggleLimits = document.getElementById('toggle-limits');
-const limitsDetails = document.getElementById('limits-details');
-const monitorError = document.getElementById('monitor-error');
-const monitorErrorMsg = document.getElementById('monitor-error-msg');
-
 // State
 let currentUser = null;
 let adminData = null; // { utenti, profili, apps, permessi }
@@ -319,9 +307,9 @@ function showLoginScreen() {
     passwordInput.value = '';
 }
 
-async function showHomeScreen() {
+async function showHomeScreen(accessVerified = false) {
     homeScreen.classList.add('hidden');
-    if (!await validateCurrentAccess()) return;
+    if (!accessVerified && !await validateCurrentAccess()) return;
     loginScreen.classList.add('hidden');
     homeScreen.classList.remove('hidden');
     userGreeting.textContent = `Ciao, ${currentUser.nome}`;
@@ -383,9 +371,11 @@ loginForm.addEventListener('submit', async (e) => {
 
         if (data.status === 'success') {
             // Salva sessione in localStorage
+            if (!data.token) throw new Error('Backend non aggiornato: sessione mancante.');
             currentUser = {...data.user, sessionToken:data.token};
+            markAccessValidated(currentUser.sessionToken);
             localStorage.setItem('portale_session', JSON.stringify(currentUser));
-            showHomeScreen();
+            await showHomeScreen(true);
         } else {
             loginError.textContent = data.message || "Credenziali errate.";
             loginError.classList.remove('hidden');
@@ -441,7 +431,6 @@ async function loadApps() {
 function renderApps(apps) {
     if (apps.length === 0) {
         appsContainer.innerHTML = '<p style="grid-column: 1/-1; text-align: center; color: var(--text-muted);">Nessuna applicazione disponibile.</p>';
-        return;
     }
 
     apps.forEach(app => {
@@ -454,7 +443,8 @@ function renderApps(apps) {
         if (app.isAllowed) {
             card.onclick = async (e) => {
                 e.preventDefault();
-                if (!await validateCurrentAccess()) return;
+                runAppTransition(card, async () => {
+                if (!await validateCurrentAccess()) return false;
                 const targetUrl = app.link;
                 const targetName = app.nome;
 
@@ -477,7 +467,7 @@ function renderApps(apps) {
                     return;
                 }
 
-                runAppTransition(card, () => {
+
                     if (targetUrl === 'native://timbrature') {
                         openTimbratureNative();
                     } else if (targetUrl === 'native://procedure') {
@@ -554,68 +544,36 @@ function renderApps(apps) {
 }
 
 // Logica Transizione Premium
-function runAppTransition(sourceElement, callback) {
-    // 1. Prepara l'icona da clonare
+let appTransitionRunning = false;
+async function runAppTransition(sourceElement, callback) {
+    if (appTransitionRunning) return;
     const icon = sourceElement.querySelector('img') || sourceElement.querySelector('.app-icon');
-    if (!icon) {
-        callback();
-        return;
-    }
-
-    const rect = icon.getBoundingClientRect();
-    const clone = icon.cloneNode(true);
-
-    // Cattura stili calcolati per coerenza (es. background-color)
-    const computedStyle = window.getComputedStyle(icon);
-    const bgColor = computedStyle.backgroundColor;
-
-    // Rimuovi stili inline che potrebbero interferire se presenti
-    clone.style.margin = '0';
-    clone.style.position = 'fixed';
-    clone.style.top = rect.top + 'px';
-    clone.style.left = rect.left + 'px';
-    clone.style.width = rect.width + 'px';
-    clone.style.height = rect.height + 'px';
-
-    // Se Ã¨ un'icona FA (div.app-icon), applica il colore originale
-    if (icon.classList.contains('app-icon')) {
-        clone.style.backgroundColor = bgColor;
-    }
-
-    clone.classList.add('transition-clone');
-
-    document.body.appendChild(clone);
-
-    // 2. Mostra l'overlay
+    if (!icon) return callback();
+    appTransitionRunning = true;
+    const rect = icon.getBoundingClientRect(), clone = icon.cloneNode(true);
+    const bgColor = window.getComputedStyle(icon).backgroundColor;
+    Object.assign(clone.style,{margin:'0',position:'fixed',top:rect.top+'px',left:rect.left+'px',width:rect.width+'px',height:rect.height+'px'});
+    if (icon.classList.contains('app-icon')) clone.style.backgroundColor=bgColor;
+    clone.classList.add('transition-clone');document.body.appendChild(clone);
     transitionOverlay.classList.remove('hidden');
-    // Piccolo delay per permettere al browser di registrare la rimozione di hidden prima di opacity
-    setTimeout(() => transitionOverlay.classList.add('active'), 10);
-
-    // 3. Sequenza Animazioni (Totale ~3 secondi)
-    // Step A: Sposta al centro
-    setTimeout(() => {
-        clone.classList.add('moving');
-    }, 50);
-
-    // Step B: Ruota su se stesso
-    setTimeout(() => {
-        clone.classList.add('spinning');
-    }, 850);
-
-    // Step C: Zoom finale ed esecuzione callback (cambio schermata)
-    setTimeout(() => {
-        clone.classList.add('zooming');
-        callback();
-    }, 2100);
-
-    // Step D: Pulizia e chiusura overlay
-    setTimeout(() => {
+    const timers=[];
+    const later=(fn,ms)=>timers.push(setTimeout(fn,ms));
+    later(()=>transitionOverlay.classList.add('active'),10);
+    later(()=>clone.classList.add('moving'),50);
+    later(()=>clone.classList.add('spinning'),850);
+    later(()=>clone.classList.add('zooming'),2100);
+    const animationDone=new Promise(resolve=>later(resolve,3200));
+    const cleanup=()=>{
+        timers.forEach(clearTimeout);
         transitionOverlay.classList.remove('active');
-        setTimeout(() => {
-            transitionOverlay.classList.add('hidden');
-            clone.remove();
-        }, 600);
-    }, 3200);
+        setTimeout(()=>{transitionOverlay.classList.add('hidden');clone.remove();appTransitionRunning=false;},600);
+    };
+    try {
+        // Start server checks and app loading now, under the original animation.
+        const result = await callback();
+        if (result !== false) await animationDone;
+    } catch(error) {console.error('Apertura app:',error);}
+    finally {cleanup();}
 }
 
 // Logica Apertura App in iFrame
@@ -815,6 +773,8 @@ function showAdminScreen() {
 }
 
 btnAdminBack.addEventListener('click', () => {
+    if (adminDirty && !confirm('Hai modifiche non salvate. Vuoi uscire e scartarle?')) return;
+    setAdminDirty(false);
     adminScreen.classList.add('hidden');
     document.body.classList.remove('fullscreen-active');
     homeScreen.classList.remove('hidden');
@@ -866,8 +826,11 @@ async function loadAdminData() {
                 apps: data.apps,
                 permessi: data.permessi,
                 dipendentiDisponibili: data.dipendentiDisponibili || [],
+                revision: data.revision,
                 log_accessi: data.log_accessi || []
             };
+            groupPerms = {};
+            setAdminDirty(false);
             renderAdminDashboard();
         } else {
             alert("Errore Admin: " + data.message);
@@ -889,21 +852,6 @@ function renderAdminDashboard() {
     renderGruppi();
     renderPermessi();
 
-    // Aggiungi pulsante per monitoraggio in fondo all'admin dashboard
-    if (!document.getElementById('btn-open-monitor')) {
-        const adminDashboard = document.querySelector('.admin-dashboard');
-        const monitorBtnContainer = document.createElement('div');
-        monitorBtnContainer.id = 'btn-open-monitor';
-        monitorBtnContainer.className = 'admin-section glass';
-        monitorBtnContainer.style.textAlign = 'center';
-        monitorBtnContainer.innerHTML = `
-            <button class="btn-primary" style="background:#6366f1; width: auto; padding: 12px 25px;">
-                <i class="fa-solid fa-microchip"></i> Apri Statistiche Quota Sistema
-            </button>
-        `;
-        monitorBtnContainer.querySelector('button').onclick = openMonitorScreen;
-        adminDashboard.appendChild(monitorBtnContainer);
-    }
 }
 
 function renderMonitoraggio() {
@@ -922,7 +870,7 @@ function renderMonitoraggio() {
         
         let header = document.createElement('div');
         header.className = 'admin-card-header';
-        header.innerHTML = `<span><i class="fa-solid fa-chart-line"></i> ${log.app}</span> <span class="badge-mid" style="background:var(--primary-color);">${log.accessi.reduce((a,b)=>a+b.conteggio, 0)} view</span>`;
+        header.innerHTML = `<span><i class="fa-solid fa-chart-line"></i> ${adminEscape(log.app)}</span> <span class="badge-mid" style="background:var(--primary-color);">${log.accessi.reduce((a,b)=>a+b.conteggio, 0)} view</span>`;
         card.appendChild(header);
 
         let body = document.createElement('div');
@@ -931,7 +879,7 @@ function renderMonitoraggio() {
         log.accessi.forEach(u => {
             body.innerHTML += `
                 <div class="admin-log-row">
-                    <span><i class="fa-solid fa-user-check" style="color:var(--text-muted);"></i> ${u.utente}</span>
+                    <span><i class="fa-solid fa-user-check" style="color:var(--text-muted);"></i> ${adminEscape(u.utente)}</span>
                     <strong style="color:var(--text-main);">${u.conteggio}</strong>
                 </div>
             `;
@@ -940,134 +888,7 @@ function renderMonitoraggio() {
         card.appendChild(body);
         container.appendChild(card);
     });
-}
-
-// ================= MONITORAGGIO SYSTEM LOGIC =================
-
-function openMonitorScreen() {
-    monitorScreen.classList.remove('hidden');
-    monitorError.classList.add('hidden'); // Reset errori
-    loadMonitorData();
-}
-
-function showMonitorError(msg) {
-    monitorErrorMsg.innerHTML = msg;
-    monitorError.classList.remove('hidden');
-}
-
-btnMonitorBack.addEventListener('click', () => {
-    monitorScreen.classList.add('hidden');
-});
-
-if (toggleLimits) {
-    toggleLimits.addEventListener('click', () => {
-        limitsDetails.classList.toggle('hidden');
-        const icon = toggleLimits.querySelector('.fa-chevron-down, .fa-chevron-up');
-        if (icon) {
-            icon.classList.toggle('fa-chevron-down');
-            icon.classList.toggle('fa-chevron-up');
-        }
-    });
-}
-
-async function loadMonitorData() {
-    monitorLoading.classList.remove('hidden');
-    monitorContent.classList.add('hidden');
-
-    try {
-        const response = await authenticatedFetch(API_URL, {
-            method: 'POST',
-            body: JSON.stringify({ action: 'GET_MONITOR_DATA', profile: currentUser.profilo })
-        });
-        const data = await response.json();
-
-        if (data.status === 'success') {
-            renderMonitorDashboard(data);
-        } else {
-            showMonitorError("<b>Errore Server:</b> " + data.message);
-        }
-    } catch (e) {
-        showMonitorError("<b>Connessione fallita:</b> Impossibile recuperare i dati dal monitoraggio GAS.");
-    } finally {
-        monitorLoading.classList.add('hidden');
-        monitorContent.classList.remove('hidden');
-    }
-}
-
-function renderMonitorDashboard(data) {
-    if (data.lastUpdated) {
-        const date = new Date(data.lastUpdated);
-        monitorLastUpdated.textContent = date.toLocaleString('it-IT');
-    }
-
-    // Email Quota
-    const emailBar = document.getElementById('quota-email-bar');
-    const emailText = document.getElementById('quota-email-text');
-
-    if (data.emailQuota === -1) {
-        emailBar.style.width = '0%';
-        emailText.textContent = "Permessi non concessi";
-        showMonitorError("<b>Permessi Email:</b> Google non ha autorizzato la lettura delle quote email. Prova a eseguire nuovamente 'scanner_hourlyAudit' dall'editor script per forzare l'autorizzazione.");
-    } else {
-        const emailUsed = 1500 - data.emailQuota;
-        const emailPerc = (emailUsed / 1500 * 100);
-        emailBar.style.width = emailPerc + '%';
-        emailText.textContent = `${emailUsed} / 1500`;
-
-        if (emailPerc >= 90) emailBar.className = 'quota-progress-fill critical';
-        else if (emailPerc >= 70) emailBar.className = 'quota-progress-fill warning';
-        else emailBar.className = 'quota-progress-fill';
-    }
-
-    // App Table
-    monitorBody.innerHTML = '';
-    let totalErrors = 0;
-
-    data.apps.forEach(app => {
-        const errCount = parseInt(app.ERRORI_7G || 0);
-        const execCount = parseInt(app.ESECUZIONI_7G || 0);
-        const errRate = parseFloat(app.ERROR_RATE || 0);
-
-        totalErrors += errCount;
-
-        const tr = document.createElement('tr');
-
-        // Alert Color Coding per riga
-        if (errRate >= 20 || errCount > 50) tr.className = 'table-row-critical';
-        else if (errRate >= 10 || errCount > 20) tr.className = 'table-row-warning';
-
-        // Badge colore
-        let rateClass = 'badge-low';
-        if (errRate >= 15) rateClass = 'badge-high';
-        else if (errRate >= 5) rateClass = 'badge-mid';
-
-        tr.innerHTML = `
-            <td>
-                <div style="font-weight:600;">${app.NOME}</div>
-                <div style="font-size:9px; color:var(--text-muted); font-family:monospace;">${app.ID}</div>
-            </td>
-            <td>${execCount}</td>
-            <td><span class="monitor-badge ${rateClass}">${app.ERROR_RATE}</span></td>
-            <td style="font-size:11px; white-space: normal; max-width: 200px;">${app.POSIZIONE}</td>
-            <td>
-                <a href="${app.URL}" target="_blank" class="btn-primary-small" style="padding:4px 8px; font-size:10px;">
-                    <i class="fa-solid fa-code"></i> Apri
-                </a>
-            </td>
-        `;
-        monitorBody.appendChild(tr);
-    });
-
-    // Salute Generale
-    const healthPerc = data.apps.length > 0 ? (100 - (totalErrors / data.apps.length * 10)).toFixed(1) : 100;
-    const hBar = document.getElementById('quota-health-bar');
-    const clampedHealth = Math.max(0, Math.min(100, healthPerc));
-    hBar.style.width = clampedHealth + '%';
-    document.getElementById('quota-health-text').textContent = `${clampedHealth}% Ok`;
-
-    if (clampedHealth <= 70) hBar.className = 'quota-progress-fill critical';
-    else if (clampedHealth <= 85) hBar.className = 'quota-progress-fill warning';
-    else hBar.className = 'quota-progress-fill';
+    compactAdminCards('monitoraggio-container');
 }
 
 function renderUtenti() {
@@ -1092,15 +913,15 @@ function renderUtenti() {
     container.innerHTML = '';
     adminData.utenti.forEach((u, i) => {
         let profiliOptions = adminData.profili.map(p =>
-            `<option value="${p.ID_PROFILO}" ${p.ID_PROFILO === u.PROFILO ? 'selected' : ''}>${p.ID_PROFILO}</option>`
+            `<option value="${adminEscape(p.ID_PROFILO)}" ${p.ID_PROFILO === u.PROFILO ? 'selected' : ''}>${adminEscape(p.ID_PROFILO)}</option>`
         ).join('');
-        let isAttivo = (u.ATTIVO === true || u.ATTIVO === 'TRUE' || u.ATTIVO === 'Vero');
+        let isAttivo = adminYes(u.ORGANICO_ATTIVO === undefined ? u.ATTIVO : u.ORGANICO_ATTIVO);
 
         let card = document.createElement('div');
         card.className = 'admin-card';
         card.innerHTML = `
             <div class="admin-card-header">
-                <span><i class="fa-solid fa-user"></i> ${u.NOME || 'Nuovo'} (${u.ID_UTENTE})</span>
+                <span><i class="fa-solid fa-user"></i> ${adminEscape(u.NOME || 'Nuovo')} (${adminEscape(u.ID_UTENTE)})</span>
                 <button class="btn-primary" onclick="resendEmployeeInvite(${i}, this)">Reinvia invito</button>
                 <button class="btn-danger-small" onclick="removeUtente(${i})"><i class="fa-solid fa-trash"></i></button>
             </div>
@@ -1108,15 +929,15 @@ function renderUtenti() {
                 <div class="admin-input-group">
                     <label>ID e Nome Dipendente</label>
                     <div style="display:flex; gap:10px;">
-                        <input type="text" value="${u.ID_UTENTE}" data-idx="${i}" data-field="ID_UTENTE" class="u-input" style="flex:1" placeholder="ID">
-                        <input type="text" list="nomi-dipendenti" value="${u.NOME}" data-idx="${i}" data-field="NOME" class="u-input" style="flex:3" placeholder="Nome">
+                        <input type="text" value="${adminEscape(u.ID_UTENTE)}" data-idx="${i}" data-field="ID_UTENTE" class="u-input" readonly style="flex:1" placeholder="ID">
+                        <input type="text" list="nomi-dipendenti" value="${adminEscape(u.NOME)}" data-idx="${i}" data-field="NOME" class="u-input" style="flex:3" placeholder="Nome">
                     </div>
                 </div>
                 <div class="admin-input-group">
                     <label>Credenziali Accesso</label>
                     <div style="display:flex; gap:10px;">
-                        <input type="text" value="${u.USERNAME}" data-idx="${i}" data-field="USERNAME" class="u-input" placeholder="Username" style="flex:1">
-                        <input type="text" value="${u.PASSWORD_HASH}" data-idx="${i}" data-field="PASSWORD_HASH" class="u-input" placeholder="Password" style="flex:1">
+                        <input type="text" value="${adminEscape(u.USERNAME)}" data-idx="${i}" data-field="USERNAME" class="u-input" placeholder="Username" style="flex:1">
+                        <input type="text" value="${adminEscape(u.PASSWORD_HASH)}" data-idx="${i}" data-field="PASSWORD_HASH" class="u-input" placeholder="Password" style="flex:1">
                     </div>
                 </div>
                 <div class="admin-input-group">
@@ -1124,7 +945,7 @@ function renderUtenti() {
                     <select data-idx="${i}" data-field="PROFILO" class="u-input">${profiliOptions}</select>
                 </div>
                 <div class="admin-toggle-row">
-                    <span>Account Attivo</span>
+                    <span>Presente nell’organico attivo</span>
                     <label class="toggle-switch">
                         <input type="checkbox" data-idx="${i}" data-field="ATTIVO" class="u-toggle" ${isAttivo ? 'checked' : ''}>
                         <span class="slider"></span>
@@ -1132,8 +953,14 @@ function renderUtenti() {
                 </div>
             </div>
         `;
+        const body = card.querySelector('.admin-card-body');
+        body.insertAdjacentHTML('beforeend', adminUserExtras(u,i));
+        const name = card.querySelector('.admin-card-header > span');
+        const status = adminYes(u.SOSPESO_INATTIVITA) ? 'Sospeso per timbrature' : !adminYes(u.ATTIVO) ? 'Accesso disattivato' : 'Accesso attivo';
+        name.appendChild(Object.assign(document.createElement('small'),{textContent:status + (adminYes(u.ESCLUSO_CONTEGGI) ? ' · Escluso presenze' : adminYes(u.ESENTE_TIMBRATURA) ? ' · Esente timbrature' : '')}));
         container.appendChild(card);
     });
+    compactAdminCards('utenti-container');
 
     // Aggiungi event listeners
     document.querySelectorAll('.u-input').forEach(el => el.addEventListener('change', updateUtenteData));
@@ -1170,20 +997,20 @@ function renderAppsAdmin() {
         card.className = 'admin-card';
         card.innerHTML = `
             <div class="admin-card-header">
-                <span><i class="${a.ICONA.startsWith('fa-') ? a.ICONA : 'fa-solid fa-cube'}"></i> ${a.NOME_APP || 'Nuova App'} (${a.ID_APP})</span>
+                <span><i class="${String(a.ICONA || '').startsWith('fa-') ? a.ICONA : 'fa-solid fa-cube'}"></i> ${adminEscape(a.NOME_APP || 'Nuova App')} (${adminEscape(a.ID_APP)})</span>
                 <button class="btn-danger-small" onclick="removeApp(${i})"><i class="fa-solid fa-trash"></i></button>
             </div>
             <div class="admin-card-body">
                 <div class="admin-input-group">
                     <label>ID App e Nome Visualizzato</label>
                     <div style="display:flex; gap:10px;">
-                        <input type="text" value="${a.ID_APP}" data-idx="${i}" data-field="ID_APP" class="a-input" style="flex:1" placeholder="ID APP">
-                        <input type="text" value="${a.NOME_APP}" data-idx="${i}" data-field="NOME_APP" class="a-input" style="flex:2" placeholder="Nome Visualizzato">
+                        <input type="text" value="${adminEscape(a.ID_APP)}" data-idx="${i}" data-field="ID_APP" class="a-input" style="flex:1" placeholder="ID APP">
+                        <input type="text" value="${adminEscape(a.NOME_APP)}" data-idx="${i}" data-field="NOME_APP" class="a-input" style="flex:2" placeholder="Nome Visualizzato">
                     </div>
                 </div>
                 <div class="admin-input-group">
                     <label>Link Deployment / Modulo Nativo</label>
-                    <textarea data-idx="${i}" data-field="LINK_DEPLOYMENT" class="a-input" style="width:100%; height: 50px; resize: vertical; font-size: 11px; padding:8px; border-radius:6px; background:var(--input-bg); color:var(--text-main); border:1px solid var(--card-border);" placeholder="https://... o native://...">${a.LINK_DEPLOYMENT}</textarea>
+                    <textarea data-idx="${i}" data-field="LINK_DEPLOYMENT" class="a-input" style="width:100%; height: 50px; resize: vertical; font-size: 11px; padding:8px; border-radius:6px; background:var(--input-bg); color:var(--text-main); border:1px solid var(--card-border);" placeholder="https://... o native://...">${adminEscape(a.LINK_DEPLOYMENT)}</textarea>
                     <select onchange="if(this.value) { const ta = this.previousElementSibling; ta.value = this.value; ta.dispatchEvent(new Event('change')); this.value=''; }" class="u-input" style="font-size:12px;">
                         <option value="">-- Autocompila Modulo Nativo --</option>
                         <option value="native://procedure">App Procedure</option>
@@ -1195,7 +1022,7 @@ function renderAppsAdmin() {
                 <div class="admin-input-group">
                     <label>Icona e Ordine</label>
                     <div style="display:flex; gap:10px;">
-                        <input type="text" list="icone-list" value="${a.ICONA}" data-idx="${i}" data-field="ICONA" class="a-input" style="flex:2" placeholder="Icona">
+                        <input type="text" list="icone-list" value="${adminEscape(a.ICONA)}" data-idx="${i}" data-field="ICONA" class="a-input" style="flex:2" placeholder="Icona">
                         <input type="number" value="${a.ORDINE || 99}" data-idx="${i}" data-field="ORDINE" class="a-input" style="flex:1" placeholder="Ordine">
                     </div>
                 </div>
@@ -1218,6 +1045,7 @@ function renderAppsAdmin() {
         container.appendChild(card);
     });
 
+    compactAdminCards('admin-apps-container');
     document.querySelectorAll('.a-input').forEach(el => el.addEventListener('change', updateAppData));
     document.querySelectorAll('.a-toggle').forEach(el => el.addEventListener('change', updateAppData));
 }
@@ -1231,35 +1059,43 @@ function renderGruppi() {
         card.className = 'admin-card';
         card.innerHTML = `
             <div class="admin-card-header">
-                <span><i class="fa-solid fa-users-gear"></i> ${g.ID_PROFILO || 'Nuovo Gruppo'}</span>
+                <span><i class="fa-solid fa-users-gear"></i> ${adminEscape(g.ID_PROFILO || 'Nuovo Gruppo')}</span>
                 <button class="btn-danger-small" onclick="removeGruppo(${i})"><i class="fa-solid fa-trash"></i></button>
             </div>
             <div class="admin-card-body">
                 <div class="admin-input-group">
                     <label>Nome Gruppo e Descrizione</label>
                     <div style="display:flex; gap:10px;">
-                        <input type="text" value="${g.ID_PROFILO || ''}" data-idx="${i}" data-field="ID_PROFILO" class="g-input" style="flex:1" placeholder="NOME GRUPPO">
-                        <input type="text" value="${g.DESCRIZIONE || ''}" data-idx="${i}" data-field="DESCRIZIONE" class="g-input" style="flex:2" placeholder="Descrizione">
+                        <input type="text" value="${adminEscape(g.ID_PROFILO || '')}" data-idx="${i}" data-field="ID_PROFILO" class="g-input" style="flex:1" placeholder="NOME GRUPPO">
+                        <input type="text" value="${adminEscape(g.DESCRIZIONE || '')}" data-idx="${i}" data-field="DESCRIZIONE" class="g-input" style="flex:2" placeholder="Descrizione">
                     </div>
                 </div>
             </div>
         `;
         container.appendChild(card);
     });
+    compactAdminCards('gruppi-container');
     document.querySelectorAll('.g-input').forEach(el => el.addEventListener('change', updateGruppoData));
 }
 
 function updateGruppoData(e) {
     let idx = e.target.getAttribute('data-idx');
     let field = e.target.getAttribute('data-field');
+    const old = adminData.profili[idx][field];
     adminData.profili[idx][field] = e.target.value;
+    if (field === 'ID_PROFILO') {
+        adminData.utenti.filter(u => u.PROFILO === old).forEach(u => u.PROFILO = e.target.value);
+        groupPerms[e.target.value] = groupPerms[old] || {}; delete groupPerms[old];
+    }
 
     if (field === 'ID_PROFILO') { renderUtenti(); renderPermessi(); }
 }
 
 window.removeGruppo = function (idx) {
+    if (adminData.utenti.some(u => u.PROFILO === adminData.profili[idx].ID_PROFILO)) {alert('Sposta prima gli utenti in un altro gruppo.');return;}
     if (confirm("Sei sicuro di eliminare questo gruppo?")) {
         adminData.profili.splice(idx, 1);
+        setAdminDirty(true);
         renderGruppi();
         renderUtenti(); 
         renderPermessi();
@@ -1268,10 +1104,12 @@ window.removeGruppo = function (idx) {
 
 if (btnAddGroup) {
     btnAddGroup.addEventListener('click', () => {
+        setAdminDirty(true);
         adminData.profili.push({
-            ID_PROFILO: 'NUOVO_GRUPPO', DESCRIZIONE: 'Descrizione'
+            ID_PROFILO: adminUnique('GRUPPO',adminData.profili,'ID_PROFILO'), DESCRIZIONE: 'Descrizione'
         });
         renderGruppi();
+        openNewAdminCard('gruppi-container');
         renderUtenti();
         renderPermessi();
     });
@@ -1280,6 +1118,9 @@ if (btnAddGroup) {
 function updateUtenteData(e) {
     let idx = e.target.getAttribute('data-idx');
     let field = e.target.getAttribute('data-field');
+    (adminData.utenti[idx]._changedFields || (adminData.utenti[idx]._changedFields={}))[field]=true;
+    if (field === 'ESCLUSO_CONTEGGI') adminData.utenti[idx]._exclusionChanged=true;
+    if (field === 'ATTIVO') {adminData.utenti[idx].ORGANICO_ATTIVO = e.target.checked;adminData.utenti[idx]._activeChanged = true;}
     adminData.utenti[idx][field] = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
 }
 
@@ -1313,7 +1154,12 @@ function updateAppData(e) {
         return;
     }
 
+    const oldId = adminData.apps[idx][field];
     adminData.apps[idx][field] = newValue;
+    if (field === 'ID_APP') {
+        adminData.permessi.filter(p => p.ID_APP === oldId).forEach(p => p.ID_APP = newValue);
+        Object.values(groupPerms).forEach(g => {if (g[oldId] !== undefined) {g[newValue]=g[oldId];delete g[oldId];}});
+    }
 
     // Se cambia un ID APP dobbiamo re-renderizzare i permessi (o se si disattiva/attiva, cambiano le colonne)
     if (field === 'ID_APP' || field === 'ATTIVA' || field === 'VISIBILE_HOME') {
@@ -1326,6 +1172,7 @@ window.removeUtente = function (idx) {
         let utenteRemoved = adminData.utenti[idx];
         adminData.permessi = adminData.permessi.filter(p => p.ID_UTENTE !== utenteRemoved.ID_UTENTE);
         adminData.utenti.splice(idx, 1);
+        setAdminDirty(true);
         renderUtenti();
         renderPermessi();
     }
@@ -1337,6 +1184,7 @@ window.removeApp = function (idx) {
         // Rimuovi anche i permessi orfani
         adminData.permessi = adminData.permessi.filter(p => p.ID_APP !== appRemoved.ID_APP);
         adminData.apps.splice(idx, 1);
+        setAdminDirty(true);
         renderAppsAdmin();
         renderPermessi();
     }
@@ -1344,22 +1192,26 @@ window.removeApp = function (idx) {
 
 if (btnAddUser) {
     btnAddUser.addEventListener('click', () => {
-        let newId = 'U' + String(adminData.utenti.length + 1).padStart(3, '0');
+        setAdminDirty(true);
+        let newId = adminUnique('U',adminData.utenti,'ID_UTENTE');
         adminData.utenti.push({
-            ID_UTENTE: newId, NOME: 'Nuovo Utente', USERNAME: 'nuovouser', PASSWORD_HASH: 'pass123',
+            ID_UTENTE: newId, NOME: '', USERNAME: '', PASSWORD_HASH: '',
             PROFILO: 'TECNICO', ATTIVO: true, IS_ADMIN: false, NOTE: ''
         });
         renderUtenti();
+        openNewAdminCard('utenti-container');
     });
 }
 
 if (btnAddApp) {
     btnAddApp.addEventListener('click', () => {
+        setAdminDirty(true);
         adminData.apps.push({
-            ID_APP: 'NUOVA_APP', NOME_APP: 'Nuova App', LINK_DEPLOYMENT: 'https://',
+            ID_APP: adminUnique('APP',adminData.apps,'ID_APP'), NOME_APP: 'Nuova App', LINK_DEPLOYMENT: 'https://',
             DESCRIZIONE: '', ICONA: 'fa-solid fa-cube', ORDINE: 99, ATTIVA: true, VISIBILE_HOME: true, COLORE_BADGE: '#10b981', NOTE: ''
         });
         renderAppsAdmin();
+        openNewAdminCard('admin-apps-container');
         renderPermessi();
     });
 }
@@ -1367,94 +1219,46 @@ if (btnAddApp) {
 let groupPerms = {};
 
 function renderPermessi() {
-    let appsDisponibili = adminData.apps.filter(app => app.ATTIVA === true || app.ATTIVA === 'TRUE' || app.ATTIVA === 'Vero');
-    const container = document.getElementById('permessi-container');
-    if (!container) return;
-    container.innerHTML = '';
-
-    // Ricostruiamo lo stato dei permessi di gruppo partendo dagli utenti attuali
-    adminData.profili.forEach(gruppo => {
-        if (!groupPerms[gruppo.ID_PROFILO]) groupPerms[gruppo.ID_PROFILO] = {};
-        
-        let refUser = adminData.utenti.find(u => u.PROFILO === gruppo.ID_PROFILO);
-
-        let card = document.createElement('div');
-        card.className = 'admin-card';
-        card.innerHTML = `
-            <div class="admin-card-header" style="color:var(--primary-color);">
-                <span><i class="fa-solid fa-key"></i> Gruppo: <b>${gruppo.ID_PROFILO}</b></span>
-            </div>
-            <div class="admin-card-body" id="perms-body-${gruppo.ID_PROFILO}">
-            </div>
-        `;
-        container.appendChild(card);
-
-        const body = card.querySelector('.admin-card-body');
-        
-        appsDisponibili.forEach(app => {
-            let hasPerm = false;
-
-            if (groupPerms[gruppo.ID_PROFILO][app.ID_APP] !== undefined) {
-                hasPerm = groupPerms[gruppo.ID_PROFILO][app.ID_APP];
-            } else if (refUser) {
-                let perm = adminData.permessi.find(p => p.ID_UTENTE === refUser.ID_UTENTE && p.ID_APP === app.ID_APP);
-                if (perm) {
-                    let pval = perm.ABILITATO;
-                    hasPerm = (pval === true || pval === 'TRUE' || pval === 'Vero' || pval === 'SÌ');
-                }
-                groupPerms[gruppo.ID_PROFILO][app.ID_APP] = hasPerm;
-            } else {
-                groupPerms[gruppo.ID_PROFILO][app.ID_APP] = false;
-            }
-
-            body.innerHTML += `
-                <div class="admin-toggle-row" style="border-bottom: 1px solid rgba(255,255,255,0.05); padding: 8px 0;">
-                    <span style="font-size:14px;"><i class="${app.ICONA.startsWith('fa-') ? app.ICONA : 'fa-solid fa-cube'}"></i> ${app.NOME_APP}</span>
-                    <label class="toggle-switch">
-                        <input type="checkbox" onchange="updateGroupPermesso('${gruppo.ID_PROFILO}', '${app.ID_APP}', this.checked)" ${hasPerm ? 'checked' : ''}>
-                        <span class="slider"></span>
-                    </label>
-                </div>
-            `;
+    const container=document.getElementById('permessi-container');
+    container.innerHTML='';
+    adminData.profili.forEach((group,index)=>{
+        const members=adminData.utenti.filter(u=>u.PROFILO===group.ID_PROFILO);
+        const card=document.createElement('div');card.className='admin-card';
+        card.innerHTML=`<div class="admin-card-header"><span>${adminEscape(group.ID_PROFILO)} · ${members.length} utenti</span></div><div class="admin-card-body"></div>`;
+        const body=card.querySelector('.admin-card-body');
+        const search=document.createElement('input');search.type='search';search.placeholder='Cerca app nel gruppo…';search.setAttribute('aria-label','Cerca app nel gruppo');
+        search.addEventListener('input',()=>{const query=search.value.trim().toLocaleLowerCase('it');body.querySelectorAll('.admin-permission-row').forEach(row=>row.hidden=!row.textContent.toLocaleLowerCase('it').includes(query));});
+        body.appendChild(search);
+        adminData.apps.filter(a=>adminYes(a.ATTIVA)).forEach(app=>{
+            const values=members.map(u=>adminYes(adminData.permessi.find(p=>p.ID_UTENTE===u.ID_UTENTE&&p.ID_APP===app.ID_APP)?.ABILITATO));
+            const override=groupPerms[group.ID_PROFILO]?.[app.ID_APP];
+            const mixed=override===undefined&&values.some(Boolean)&&values.some(v=>!v);
+            const enabled=override===undefined?values.length>0&&values.every(Boolean):override;
+            const row=document.createElement('label');row.className='admin-permission-row';
+            row.innerHTML=`<span>${adminEscape(app.NOME_APP)}<small>${mixed?'Misti':enabled?'Consentito':'Non consentito'}</small></span><input type="checkbox" aria-label="${adminEscape(app.NOME_APP)}" ${enabled?'checked':''}>`;
+            const checkbox=row.querySelector('input');checkbox.indeterminate=mixed;
+            checkbox.addEventListener('change',()=>{(groupPerms[group.ID_PROFILO]||(groupPerms[group.ID_PROFILO]={}))[app.ID_APP]=checkbox.checked;row.querySelector('small').textContent=checkbox.checked?'Consentito':'Non consentito';setAdminDirty(true);});
+            body.appendChild(row);
         });
+        container.appendChild(card);
     });
+    compactAdminCards('permessi-container');
 }
-
-window.updateGroupPermesso = function (gruppoId, appId, checked) {
-    if (!groupPerms[gruppoId]) groupPerms[gruppoId] = {};
-    groupPerms[gruppoId][appId] = checked;
-};
 
 btnAdminSave.addEventListener('click', async () => {
     btnAdminSave.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
     btnAdminSave.disabled = true;
 
-    // ESPANSIONE DEI PERMESSI DA GRUPPI A SINGOLI UTENTI
-    // Per garantire la retrocompatibilità totale con le altre app che leggono il foglio PERMESSI_APP,
-    // andiamo a generare una riga per ogni ID_UTENTE e ogni APP disponibile,
-    // applicando il permesso definito a livello di Gruppo.
-    let permessiEstesi = [];
-    let appsDisponibili = adminData.apps.filter(app => app.ATTIVA === true || app.ATTIVA === 'TRUE' || app.ATTIVA === 'Vero');
-
-    adminData.utenti.forEach(u => {
-        appsDisponibili.forEach(a => {
-            let hasPerm = false;
-            if (groupPerms[u.PROFILO] && groupPerms[u.PROFILO][a.ID_APP] !== undefined) {
-                hasPerm = groupPerms[u.PROFILO][a.ID_APP];
-            }
-            permessiEstesi.push({
-                ID_UTENTE: u.ID_UTENTE,
-                ID_APP: a.ID_APP,
-                ABILITATO: hasPerm
-            });
-        });
-    });
+    const validation = validateAdminData();
+    if (validation) {alert(validation);btnAdminSave.disabled=false;btnAdminSave.textContent='Salva';return;}
+    const permessiEstesi = buildAdminPermissions(adminData,groupPerms);
 
     try {
         const response = await authenticatedFetch(API_URL, {
             method: 'POST',
             body: JSON.stringify({
                 action: 'SAVE_ADMIN_DATA',
+                revision: adminData.revision,
                 adminUserId: currentUser.id || currentUser.ID_UTENTE,
                 utenti_aggiornati: adminData.utenti,
                 apps_aggiornate: adminData.apps,
@@ -1466,6 +1270,8 @@ btnAdminSave.addEventListener('click', async () => {
         if (data.status === 'success') {
             // Aggiorniamo i permessi locali con quelli appena salvati
             adminData.permessi = permessiEstesi;
+            setAdminDirty(false);
+            await loadAdminData();
             alert('Salvataggio completato con successo!');
         } else {
             alert('Errore al salvataggio: ' + data.message);
@@ -1996,6 +1802,7 @@ window.navigateFolder = function(id, name) {
 async function resendEmployeeInvite(index, button) {
   const user = adminData.utenti[index];
   if (!user) return;
+  if (adminDirty) {alert('Salva prima le modifiche: l’invito usa le credenziali già salvate.');return;}
   button.disabled = true;
   try {
     const response = await authenticatedFetch(API_URL, {method:'POST',body:JSON.stringify({action:'RESEND_EMPLOYEE_INVITE',adminUserId:currentUser.id || currentUser.ID_UTENTE,employeeId:user.ID_UTENTE})});
@@ -2007,6 +1814,8 @@ async function resendEmployeeInvite(index, button) {
 
 const accessNetworkFetch = window.fetch.bind(window);
 let accessCheckInFlight = null;
+let accessValidatedAt = 0, accessValidatedToken = '';
+function markAccessValidated(token) {accessValidatedToken=token;accessValidatedAt=Date.now();}
 const ACCESS_DENIED_CODES = ['INACTIVITY','NOT_IN_ROSTER','BADGE_REASSIGNED','ACCOUNT_DISABLED','ACCOUNT_REMOVED','SESSION_INVALID','ACCESS_CHECK_FAILED'];
 function closeProtectedScreens() {
     for (const id of ['home-screen','iframe-screen','drive-viewer-screen','timbrature-screen','admin-screen','monitor-screen','moduli-rapidi-screen']) {
@@ -2033,16 +1842,27 @@ async function authenticatedFetch(url, options = {}) {
     const result = await response.clone().json();
     if (payload.action !== 'LOGIN' && result.status === 'success' && (!currentUser || currentUser.sessionToken !== token)) throw new Error('Sessione chiusa durante la richiesta.');
     if (ACCESS_DENIED_CODES.includes(result.code) && currentUser && currentUser.sessionToken === token) revokeCurrentAccess(result.message);
+    if (payload.action !== 'LOGIN' && result.status === 'success' && currentUser && currentUser.sessionToken === token) markAccessValidated(token);
     return response;
 }
-async function validateCurrentAccess() {
+async function validateCurrentAccess(force = false) {
     if (!currentUser || !currentUser.sessionToken) return false;
+    if (!force && accessValidatedToken === currentUser.sessionToken && Date.now()-accessValidatedAt < 60000) return true;
     if (accessCheckInFlight) return accessCheckInFlight;
     const token = currentUser.sessionToken;
     accessCheckInFlight = (async () => {
         try {
             const response = await authenticatedFetch(API_URL,{method:'POST',body:JSON.stringify({action:'CHECK_ACCESS'})});
             const result = await response.json();
+            if (result.status !== 'success') {
+                if (currentUser && currentUser.sessionToken === token) {
+                    const message = result.message === 'Azione non valida.'
+                        ? 'Il backend Apps Script non è aggiornato. Pubblica una nuova versione della distribuzione usata dalla PWA.'
+                        : result.message || 'Impossibile verificare l’accesso. Riprova tra poco.';
+                    revokeCurrentAccess(message);
+                }
+                return false;
+            }
             return result.status === 'success' && !!currentUser && currentUser.sessionToken === token;
         } catch(e) {
             if (currentUser && currentUser.sessionToken === token) revokeCurrentAccess('Impossibile verificare l’accesso. Controlla la connessione e accedi nuovamente.');
@@ -2051,9 +1871,9 @@ async function validateCurrentAccess() {
     })();
     try {return await accessCheckInFlight;} finally {accessCheckInFlight=null;}
 }
-setInterval(() => {if (currentUser && !document.hidden) validateCurrentAccess();},60000);
-document.addEventListener('visibilitychange',() => {if (!document.hidden && currentUser) validateCurrentAccess();});
-window.addEventListener('focus',() => {if (currentUser) validateCurrentAccess();});
+setInterval(() => {if (currentUser && !document.hidden) validateCurrentAccess(true);},60000);
+document.addEventListener('visibilitychange',() => {if (!document.hidden && currentUser) validateCurrentAccess(true);});
+window.addEventListener('focus',() => {if (currentUser) validateCurrentAccess(true);});
 window.addEventListener('storage',event => {if (event.key === 'portale_session' && !event.newValue && currentUser) revokeCurrentAccess('Sessione chiusa. Accedi nuovamente.');});
 
 init();

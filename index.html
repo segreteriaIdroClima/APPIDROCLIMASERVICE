@@ -15,7 +15,7 @@
     <link rel="icon" type="image/png" href="idroclima-drop-48.png" sizes="48x48">
 
     <!-- CSS e Font -->
-    <link rel="stylesheet" href="style.css?v=22">
+    <link rel="stylesheet" href="style.css?v=32">
     <!-- Font Awesome per le icone (opzionale, caricato tramite CDN per semplicitÃƒÂ ) -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
@@ -109,14 +109,16 @@
 
             <div id="admin-content" class="admin-dashboard hidden">
                 <div class="admin-tabs-nav">
-                    <button class="admin-tab-btn active" onclick="switchAdminTab('tab-monitoraggio')"><i class="fa-solid fa-chart-line"></i> Monitoraggio</button>
-                    <button class="admin-tab-btn" onclick="switchAdminTab('tab-utenti')"><i class="fa-solid fa-users"></i> Utenti & Gruppi</button>
+                    <button class="admin-tab-btn" onclick="switchAdminTab('tab-monitoraggio')"><i class="fa-solid fa-chart-line"></i> Monitoraggio</button>
+                    <button class="admin-tab-btn active" onclick="switchAdminTab('tab-utenti')"><i class="fa-solid fa-users"></i> Utenti</button>
                     <button class="admin-tab-btn" onclick="switchAdminTab('tab-apps')"><i class="fa-solid fa-cubes"></i> Web App</button>
                     <button class="admin-tab-btn" onclick="switchAdminTab('tab-permessi')"><i class="fa-solid fa-key"></i> Permessi</button>
+                    <button class="admin-tab-btn" onclick="switchAdminTab('tab-gruppi')">Gruppi</button>
                 </div>
 
+                <div class="admin-toolbar"><span id="admin-save-state" role="status">Tutte le modifiche salvate</span><button id="admin-reload" class="btn-secondary-small">Ricarica dati</button><button id="admin-collapse" class="btn-secondary-small">Chiudi tutte le schede</button></div>
                 <!-- TAB MONITORAGGIO -->
-                <div id="tab-monitoraggio" class="admin-tab-content active">
+                <div id="tab-monitoraggio" class="admin-tab-content hidden">
                     <div class="admin-section glass">
                         <div class="admin-section-header">
                             <h3><i class="fa-solid fa-chart-line"></i> Monitoraggio Accessi (30gg)</h3>
@@ -127,7 +129,7 @@
                 </div>
 
                 <!-- TAB UTENTI E GRUPPI -->
-                <div id="tab-utenti" class="admin-tab-content hidden">
+                <div id="tab-utenti" class="admin-tab-content active">
                     <div class="admin-section glass">
                         <div class="admin-section-header">
                             <h3><i class="fa-solid fa-users"></i> Gestione Utenti</h3>
@@ -136,6 +138,8 @@
                         <div id="utenti-container" class="admin-cards-container">
                         </div>
                     </div>
+                </div>
+                <div id="tab-gruppi" class="admin-tab-content hidden">
                     <div class="admin-section glass" style="margin-top: 20px;">
                         <div class="admin-section-header">
                             <h3><i class="fa-solid fa-tags"></i> Gestione Gruppi</h3>
@@ -156,7 +160,7 @@
                         <div id="admin-apps-container" class="admin-cards-container">
                         </div>
                         <div style="margin-top: 10px; font-size: 13px; color: var(--text-muted); text-align:center;">
-                            * Delega Procedure: apri foglio UTENTI e imposta VERO su CAN_EDIT_PROCEDURE.
+                            Le schede si aprono singolarmente. Cerca per nome, ID o indirizzo.
                         </div>
                     </div>
                 </div>
@@ -165,8 +169,9 @@
                 <div id="tab-permessi" class="admin-tab-content hidden">
                     <div class="admin-section glass">
                         <div class="admin-section-header">
-                            <h3><i class="fa-solid fa-key"></i> Permessi Gruppi</h3>
+                            <h3><i class="fa-solid fa-key"></i> Permessi per gruppo</h3>
                         </div>
+                        <p class="admin-hint">Ogni modifica si applica agli utenti del gruppo. “Misti” indica permessi individuali diversi: rimangono tali finché non cambi quella voce.</p>
                         <div id="permessi-container" class="admin-cards-container">
                         </div>
                     </div>
@@ -257,50 +262,6 @@
                 <div id="drive-viewer-list" class="drive-list">
                     <!-- Lista file -->
                 </div>
-            </div>
-        </main>
-    </div>
-
-    <!-- Schermata Monitor (Admin) -->
-    <div id="monitor-screen" class="screen hidden">
-        <header class="app-header glass">
-            <div class="header-content">
-                <div class="header-left">
-                    <button id="btn-monitor-back" class="btn-icon"><i class="fa-solid fa-arrow-left"></i></button>
-                    <h2>Monitor Esecuzioni</h2>
-                </div>
-                <div class="header-right">
-                    <span id="monitor-last-updated" style="font-size: 12px; color: var(--text-muted);"></span>
-                </div>
-            </div>
-        </header>
-        <main class="main-content">
-            <div class="card" style="margin-bottom: 20px; text-align: center;">
-                <h3><i class="fa-solid fa-chart-line"></i> Stato Server GAS</h3>
-                <p>Monitora lo stato di esecuzione e i limiti API di Google.</p>
-                <button id="toggle-limits" class="btn-secondary-small" style="margin-top: 10px;">Mostra Limiti</button>
-                <div id="limits-details" class="hidden" style="margin-top: 15px; text-align: left; font-size: 14px; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px;">
-                </div>
-            </div>
-            
-            <div id="monitor-loading" class="loading-state hidden">
-                <i class="fa-solid fa-circle-notch fa-spin fa-2x"></i>
-                <p>Caricamento dati...</p>
-            </div>
-            <div id="monitor-error" class="error-msg hidden">
-                <span id="monitor-error-msg"></span>
-            </div>
-            
-            <div id="monitor-content" class="table-responsive hidden">
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Data/Ora</th><th>Utente</th><th>Azione</th><th>Stato</th><th>Tempo (ms)</th><th>Dettagli</th>
-                        </tr>
-                    </thead>
-                    <tbody id="monitor-body">
-                    </tbody>
-                </table>
             </div>
         </main>
     </div>
@@ -494,7 +455,8 @@
         </div>
     </div>
 
-    <script src="app.js?v=29"></script>
+    <script src="admin-tools.js?v=32"></script>
+    <script src="app.js?v=32"></script>
 </body>
 
 </html>

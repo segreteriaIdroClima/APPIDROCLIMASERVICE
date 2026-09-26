@@ -1139,3 +1139,47 @@ input:checked+.slider:before {
 /* FIX SCROLL OVERLAYS */
 #drive-viewer-screen:not(.hidden), #timbrature-screen:not(.hidden) { position: fixed; top: 0; left: 0; width: 100%; height: 100%; overflow-y: auto; background: var(--bg-color); z-index: 1000; display: block; }
 
+/* Compact administration, scoped to keep the technician portal unchanged. */
+#admin-screen .main-content {max-width:1100px;margin:auto;width:100%;box-sizing:border-box;}
+#admin-screen .admin-tabs-nav {position:sticky;top:0;z-index:2;background:var(--bg-color,#101827);padding:10px 0;}
+#admin-screen .admin-tabs-nav {scrollbar-width:none;margin-bottom:12px;}
+#admin-screen .admin-tabs-nav::-webkit-scrollbar {display:none;}
+#admin-screen .admin-toolbar,#admin-screen .admin-search-bar {display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin:12px 0 18px;}
+#admin-screen .admin-toolbar > span {flex:1;font-size:13px;color:var(--text-muted);}
+#admin-screen .admin-toolbar > span.pending {color:#fbbf24;}
+#admin-screen .admin-search-bar input,#admin-screen .admin-search-bar select {padding:12px;border:1px solid var(--card-border);border-radius:10px;background:var(--input-bg);color:var(--text-main);min-width:0;box-sizing:border-box;font-size:15px;}
+#admin-screen .admin-search-bar input {flex:1;min-width:160px;}
+#admin-screen .admin-search-bar select {max-width:100%;}
+#admin-screen .admin-count {color:var(--text-muted);font-size:13px;}
+#admin-screen .admin-fold {display:block;padding:0;overflow:hidden;}
+#admin-screen .admin-fold[hidden],#admin-screen .admin-empty[hidden] {display:none;}
+#admin-screen .admin-fold > summary {cursor:pointer;list-style:none;margin:0;padding:16px;border-bottom:0;min-height:24px;}
+#admin-screen .admin-fold > summary::-webkit-details-marker {display:none;}
+#admin-screen .admin-fold > summary::after {content:'＋';font-size:20px;color:var(--text-muted);margin-left:12px;}
+#admin-screen .admin-fold[open] > summary::after {content:'−';}
+#admin-screen .admin-fold > summary span {min-width:0;overflow-wrap:anywhere;}
+#admin-screen .admin-fold > .admin-card-body {display:none;padding:16px;border-top:1px solid var(--card-border);}
+#admin-screen .admin-fold[open] > .admin-card-body {display:flex;}
+#admin-screen small {display:block;color:var(--text-muted);font-size:12px;font-weight:400;line-height:1.5;margin-top:5px;}
+#admin-screen .admin-hint {color:var(--text-muted);font-size:13px;line-height:1.5;}
+#admin-screen .admin-actions {display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;}
+#admin-screen .admin-actions .btn-primary {width:auto;padding:10px 16px;}
+#admin-screen .admin-toggle-row {gap:16px;padding:8px 0;}
+#admin-screen .toggle-switch {flex-shrink:0;}
+#admin-screen .admin-permission-row {display:flex;justify-content:space-between;align-items:center;gap:15px;padding:10px 0;border-bottom:1px solid var(--card-border);cursor:pointer;}
+#admin-screen .admin-permission-row input {width:22px;height:22px;accent-color:#10b981;flex-shrink:0;}
+#admin-screen .admin-permission-row[hidden] {display:none;}
+#admin-screen .admin-card-body > input[type="search"] {width:100%;padding:12px;background:var(--input-bg);color:var(--text-main);border:1px solid var(--card-border);border-radius:8px;}
+#admin-screen input[readonly] {opacity:.65;}
+@media(max-width:600px) {
+ #admin-screen .header-content {flex-wrap:wrap;gap:10px;}
+ #admin-screen .header-right {margin-left:auto;}
+ #admin-screen .main-content {padding:12px;}
+ #admin-screen .admin-section {padding:12px;}
+ #admin-screen .admin-section-header {flex-wrap:wrap;gap:10px;}
+ #admin-screen .admin-search-bar select {width:100%;}
+ #admin-screen .admin-input-group > div {flex-wrap:wrap;}
+ #admin-screen .admin-input-group input {min-width:120px;}
+ #admin-screen .admin-toolbar {gap:8px;}
+ #admin-screen .admin-toolbar > span {flex-basis:100%;}
+}

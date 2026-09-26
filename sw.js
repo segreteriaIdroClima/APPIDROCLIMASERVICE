@@ -1,9 +1,10 @@
-const CACHE_NAME = 'portale-aziendale-v29-accesso-organico';
+const CACHE_NAME = 'portale-aziendale-v32-accesso-rapido';
 const ASSETS_TO_CACHE = [
     './',
     './index.html',
     './style.css',
     './app.js',
+    './admin-tools.js',
     './jsQR.js',
     './manifest.json',
     './idroclima-app-192.png',
