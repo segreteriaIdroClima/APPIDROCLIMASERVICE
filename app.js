@@ -1206,14 +1206,7 @@ window.removeApp = function (idx) {
 
 if (btnAddUser) {
     btnAddUser.addEventListener('click', () => {
-        setAdminDirty(true);
-        let newId = adminUnique('U',adminData.utenti,'ID_UTENTE');
-        adminData.utenti.push({
-            ID_UTENTE: newId, NOME: '', USERNAME: '', PASSWORD_HASH: '',
-            PROFILO: 'TECNICO', ATTIVO: true, IS_ADMIN: false, NOTE: ''
-        });
-        renderUtenti();
-        openNewAdminCard('utenti-container');
+        window.open('https://script.google.com/a/macros/idroclimaservicemilano.it/s/AKfycbxsE9TcuNToeylKmiF3taoxNWOi2_hJyOCmJC8y472W-t7PNlEvMWiNkE79vU-jiXnpJQ/exec','_blank','noopener');
     });
 }
 
@@ -1830,7 +1823,7 @@ const accessNetworkFetch = window.fetch.bind(window);
 let accessCheckInFlight = null;
 let accessValidatedAt = 0, accessValidatedToken = '';
 function markAccessValidated(token) {accessValidatedToken=token;accessValidatedAt=Date.now();}
-const ACCESS_DENIED_CODES = ['INACTIVITY','NOT_IN_ROSTER','BADGE_REASSIGNED','ACCOUNT_DISABLED','ACCOUNT_REMOVED','SESSION_INVALID'];
+const ACCESS_DENIED_CODES = ['INACTIVITY','NOT_IN_ROSTER','ACCESS_NOT_STARTED','BADGE_REASSIGNED','ACCOUNT_DISABLED','ACCOUNT_REMOVED','SESSION_INVALID'];
 function closeProtectedScreens() {
     for (const id of ['home-screen','iframe-screen','drive-viewer-screen','timbrature-screen','admin-screen','monitor-screen','moduli-rapidi-screen']) {
         const element = document.getElementById(id); if (element) element.classList.add('hidden');
