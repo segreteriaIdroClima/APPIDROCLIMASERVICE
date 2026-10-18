@@ -228,6 +228,7 @@ const transitionOverlay = document.getElementById('transition-overlay');
 const transitionIconContainer = document.getElementById('transition-icon-container');
 
 // State
+const PORTAL_SESSION_STORAGE_KEY = 'idroclima_session:'+new URL('.',location.href).pathname;
 let currentUser = null;
 let adminData = null; // { utenti, profili, apps, permessi }
 
@@ -288,11 +289,14 @@ if ('serviceWorker' in navigator) {
 // Inizializzazione
 function init() {
     // Controlla se c'Ã¨ una sessione salvata
-    const session = localStorage.getItem('portale_procedure_rc1_session');
+    const migrationKey=PORTAL_SESSION_STORAGE_KEY+':migrated';
+    const session = localStorage.getItem(PORTAL_SESSION_STORAGE_KEY) || (!localStorage.getItem(migrationKey)?localStorage.getItem('portale_procedure_rc1_session'):null);
+    localStorage.setItem(migrationKey,'1');
+    if(session&&!localStorage.getItem(PORTAL_SESSION_STORAGE_KEY))localStorage.setItem(PORTAL_SESSION_STORAGE_KEY,session);
     if (session) {
         try { currentUser = JSON.parse(session); } catch(e) { currentUser = null; }
         if (currentUser && currentUser.sessionToken) showHomeScreen();
-        else { localStorage.removeItem('portale_procedure_rc1_session'); currentUser = null; showLoginScreen(); }
+        else { localStorage.removeItem(PORTAL_SESSION_STORAGE_KEY); currentUser = null; showLoginScreen(); }
     } else {
         showLoginScreen();
     }
@@ -373,7 +377,7 @@ loginForm.addEventListener('submit', async (e) => {
             if (!data.token) throw new Error('Backend non aggiornato: sessione mancante.');
             currentUser = {...data.user, sessionToken:data.token};
             markAccessValidated(currentUser.sessionToken);
-            localStorage.setItem('portale_procedure_rc1_session', JSON.stringify(currentUser));
+            localStorage.setItem(PORTAL_SESSION_STORAGE_KEY, JSON.stringify(currentUser));
             await showHomeScreen(true);
         } else {
             loginError.textContent = data.message || "Credenziali errate.";
@@ -389,7 +393,7 @@ loginForm.addEventListener('submit', async (e) => {
 });
 
 btnLogout.addEventListener('click', () => {
-    localStorage.removeItem('portale_procedure_rc1_session');
+    localStorage.removeItem(PORTAL_SESSION_STORAGE_KEY);
     currentUser = null;
     closeProtectedScreens();
     showLoginScreen();
@@ -1883,7 +1887,7 @@ document.getElementById('portal-connection-retry')?.addEventListener('click',asy
 });
 
 function revokeCurrentAccess(message) {
-    localStorage.removeItem('portale_procedure_rc1_session'); currentUser = null;
+    localStorage.removeItem(PORTAL_SESSION_STORAGE_KEY); currentUser = null;
     hideConnectionStatus();
     closeProtectedScreens(); showLoginScreen();
     loginError.textContent = message || 'Accesso revocato. Accedi nuovamente.';
@@ -1935,6 +1939,6 @@ async function validateCurrentAccess(force = false) {
 setInterval(() => {if (currentUser && !document.hidden) validateCurrentAccess(true);},60000);
 document.addEventListener('visibilitychange',() => {if (!document.hidden && currentUser) validateCurrentAccess(true);});
 window.addEventListener('focus',() => {if (currentUser) validateCurrentAccess(true);});
-window.addEventListener('storage',event => {if (event.key === 'portale_procedure_rc1_session' && !event.newValue && currentUser) revokeCurrentAccess('Sessione chiusa. Accedi nuovamente.');});
+window.addEventListener('storage',event => {if (event.key === PORTAL_SESSION_STORAGE_KEY && !event.newValue && currentUser) revokeCurrentAccess('Sessione chiusa. Accedi nuovamente.');});
 
 init();
