@@ -1,5 +1,5 @@
 const CACHE_SCOPE = 'idroclima-procedures-'+new URL(self.registration.scope).pathname.replace(/[^a-z0-9]/gi,'_');
-const CACHE_NAME = CACHE_SCOPE+'-pwa47';
+const CACHE_NAME = CACHE_SCOPE+'-pwa48';
 const ASSETS_TO_CACHE = [
     './',
     './index.html',
@@ -25,9 +25,11 @@ const ASSETS_TO_CACHE = [
 
 self.addEventListener('install', (evt) => {
     evt.waitUntil(
-        caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS_TO_CACHE.map(asset=>new Request(new URL(asset,self.registration.scope),{cache:'reload'}))))
+        caches.open(CACHE_NAME).then(cache => {
+            const assets = [...ASSETS_TO_CACHE, ...ASSETS_TO_CACHE.filter(asset=>/\.(js|css)$/.test(asset)).map(asset=>asset+'?v='+ (asset==='./jsQR.js'?'27':'pwa48'))];
+            return cache.addAll(assets.map(asset=>new Request(new URL(asset,self.registration.scope),{cache:'reload'})));
+        }).then(()=>self.skipWaiting())
     );
-    self.skipWaiting();
 });
 
 self.addEventListener('activate', (evt) => {
@@ -39,50 +41,35 @@ self.addEventListener('activate', (evt) => {
     self.clients.claim();
 });
 
-self.addEventListener('fetch', (evt) => {
-    const requestUrl = new URL(evt.request.url);
-
-    if (requestUrl.hostname.includes('script.google.com') || requestUrl.hostname.includes('googleusercontent.com')) {
-        return;
-    }
-
-    if (evt.request.method !== 'GET') {
-        return;
-    }
-
-    const isLocalAsset = requestUrl.origin === self.location.origin;
-    const isFreshAsset = isLocalAsset && (
-        evt.request.mode === 'navigate' ||
-        requestUrl.pathname.endsWith('.html') ||
-        requestUrl.pathname.endsWith('.js') ||
-        requestUrl.pathname.endsWith('.css') ||
-        requestUrl.pathname.endsWith('manifest.json')
-    );
-
-    if (isFreshAsset) {
-        evt.respondWith(
-            fetch(evt.request,{cache:'no-cache'})
-                .then((networkResponse) => {
-                    const responseCopy = networkResponse.clone();
-                    caches.open(CACHE_NAME).then((cache) => cache.put(evt.request, responseCopy));
-                    return networkResponse;
-                })
-                .catch(() => caches.open(CACHE_NAME).then(cache=>cache.match(evt.request,{ignoreSearch:true})))
-        );
-        return;
-    }
-
-    evt.respondWith(
-        caches.open(CACHE_NAME).then(cache=>cache.match(evt.request,{ignoreSearch:true})).then((cachedResponse) => {
-            return cachedResponse || fetch(evt.request).then((networkResponse) => {
-                if (isLocalAsset) {
-                    const responseCopy = networkResponse.clone();
-                    caches.open(CACHE_NAME).then((cache) => cache.put(evt.request, responseCopy));
-                }
-                return networkResponse;
-            });
-        })
-    );
+// Cache only known static resources for this release. Operational data stays on the network.
+const STATIC_PATHS = new Set(ASSETS_TO_CACHE.map(asset=>new URL(asset,self.registration.scope).pathname));
+self.addEventListener('fetch', evt => {
+    const request=evt.request,url=new URL(request.url);
+    if(request.method!=='GET'||url.origin!==self.location.origin||!url.href.startsWith(self.registration.scope))return;
+    const known=STATIC_PATHS.has(url.pathname);
+    const version=url.searchParams.get('v');
+    const singleVersion=[...url.searchParams.keys()].every(key=>key==='v');
+    const versioned=known&&singleVersion&&(version==='pwa48'||(url.pathname.endsWith('/jsQR.js')&&version==='27'));
+    const binary=known&&!url.search&&/\.(png|mjs)$/.test(url.pathname);
+    // Configuration and HTML always check the network for updated destinations/releases.
+    const fast=request.mode!=='navigate'&&!url.pathname.endsWith('/release-config.js')&&(versioned||binary);
+    evt.respondWith((async()=>{
+        const cache=await caches.open(CACHE_NAME);
+        if(fast){const hit=await cache.match(request);if(hit)return hit;}
+        try{
+            const response=await fetch(request,{cache:'no-cache'});
+            if(known&&response.ok&&response.type!=='opaque')await cache.put(request,response.clone());
+            return response;
+        }catch(error){
+            const fallback=known?await cache.match(request):null;
+            if(fallback)return fallback;
+            if(request.mode==='navigate'){
+                const home=await cache.match(new URL('index.html',self.registration.scope));
+                if(home)return home;
+            }
+            throw error;
+        }
+    })());
 });
 
 /* PROCEDURES ADDITION: only generic payloads; never cache documents or API tokens. */

@@ -400,7 +400,17 @@ btnLogout.addEventListener('click', () => {
 });
 
 // Caricamento App
+let appsLoadInFlight = null;
 async function loadApps() {
+    const token=currentUser?.sessionToken;
+    if(!token)return;
+    if(appsLoadInFlight?.token===token)return appsLoadInFlight.promise;
+    const pending={token,promise:loadAppsOnce()};
+    appsLoadInFlight=pending;
+    try{return await pending.promise;}
+    finally{if(appsLoadInFlight===pending)appsLoadInFlight=null;}
+}
+async function loadAppsOnce() {
     appsContainer.innerHTML = '';
     loadingApps.classList.remove('hidden');
 
