@@ -1,6 +1,6 @@
 {
-  "name": "Portale Idroclima",
-  "short_name": "Idroclima",
+  "name": "Portale Idroclima — collaudo reale",
+  "short_name": "Idroclima Prova",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#0f172a",

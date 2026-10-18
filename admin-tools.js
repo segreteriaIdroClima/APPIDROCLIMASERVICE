@@ -77,11 +77,11 @@ function buildAdminPermissions(data,changes) {
     return result;
 }
 function validateAdminData() {
-    for(const [items,key,label] of [[adminData.utenti,'ID_UTENTE','ID utente'],[adminData.utenti,'USERNAME','Username'],[adminData.apps,'ID_APP','ID app'],[adminData.profili,'ID_PROFILO','Gruppo']]){
+    for(const [items,key,label] of [...(adminData.accountsReadOnly?[]:[[adminData.utenti,'ID_UTENTE','ID utente'],[adminData.utenti,'USERNAME','Username']]),[adminData.apps,'ID_APP','ID app'],[adminData.profili,'ID_PROFILO','Gruppo']]){
         const values=items.map(v=>String(v[key]||'').trim().toUpperCase());
         if(values.some(v=>!v)||new Set(values).size!==values.length)return label+': compila tutti i valori ed elimina i duplicati.';
     }
-    if(adminData.utenti.some(u=>!String(u.NOME||'').trim()||!String(u.PASSWORD_HASH||'').trim()))return 'Ogni utente deve avere nome, username e password.';
+    if(!adminData.accountsReadOnly&&adminData.utenti.some(u=>!String(u.NOME||'').trim()||!String(u.PASSWORD_HASH||'').trim()))return 'Ogni utente deve avere nome, username e password.';
     if(adminData.utenti.some(u=>!adminData.profili.some(g=>g.ID_PROFILO===u.PROFILO)))return 'Assegna a ogni utente un gruppo esistente.';
     return '';
 }
@@ -90,6 +90,6 @@ document.addEventListener('DOMContentLoaded',()=>{
     screen.addEventListener('input',e=>{if(e.target.type!=='search'&&e.target.closest('.admin-card'))setAdminDirty(true);});
     screen.addEventListener('change',e=>{if(e.target.type!=='search'&&e.target.closest('.admin-card'))setAdminDirty(true);});
     document.getElementById('admin-collapse').addEventListener('click',()=>screen.querySelectorAll('details').forEach(d=>d.open=false));
-    document.getElementById('admin-reload').addEventListener('click',()=>{if(!adminDirty||confirm('Ricaricare e scartare le modifiche non salvate?'))loadAdminData();});
+    document.getElementById('admin-reload').addEventListener('click',async()=>{if(!adminDirty||await IdroclimaMessages.confirm('Ricaricare e scartare le modifiche non salvate?'))loadAdminData();});
     window.addEventListener('beforeunload',e=>{if(adminDirty){e.preventDefault();e.returnValue='';}});
 });

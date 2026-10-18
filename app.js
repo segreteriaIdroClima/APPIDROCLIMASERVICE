@@ -1,5 +1,5 @@
 // Sostituisci questo URL con l'URL della tua Web App di Google Apps Script (assicurati finisca con /exec)
-const API_URL = 'https://script.google.com/macros/s/AKfycbx38nGmf0QzZz8AjDrCgljgXjmXA5ZHPIB50quq6M_rh5qCypdJ9lvqkyKVrXF804St/exec';
+const API_URL = window.IDROCLIMA_RELEASE?.apiUrl || 'https://invalid.invalid/collaudo-non-configurato';
 
 // Elementi DOM
 const loginScreen = document.getElementById('login-screen');
@@ -261,7 +261,7 @@ window.addEventListener('beforeinstallprompt', (e) => {
 btnInstall.addEventListener('click', async () => {
     // Seleziona comportamento Apple
     if (isIos() && !isInStandaloneMode()) {
-        alert("PER INSTALLARE SU APPLE iOS:\n\n1. Tocca l'icona 'Condividi' (il quadrato con la freccia rivolta in alto) nella barra inferiore di Safari.\n2. Scorri il menÃ¹ e tocca 'Aggiungi alla schermata Home' o 'Aggiungi a Home'.");
+        IdroclimaMessages.alert("PER INSTALLARE SU APPLE iOS:\n\n1. Tocca l'icona 'Condividi' (il quadrato con la freccia rivolta in alto) nella barra inferiore di Safari.\n2. Scorri il menÃ¹ e tocca 'Aggiungi alla schermata Home' o 'Aggiungi a Home'.");
         return;
     }
 
@@ -271,7 +271,7 @@ btnInstall.addEventListener('click', async () => {
         deferredPrompt = null;
         btnInstall.classList.add('hidden');
     } else if (!isIos()) {
-        alert("Per installare l'app:\n\n1. Apri il menu del browser.\n2. Tocca 'Installa app' oppure 'Aggiungi a schermata Home'.\n\nSe il pulsante non compare nel menu, ricarica la pagina dopo qualche secondo.");
+        IdroclimaMessages.alert("Per installare l'app:\n\n1. Apri il menu del browser.\n2. Tocca 'Installa app' oppure 'Aggiungi a schermata Home'.\n\nSe il pulsante non compare nel menu, ricarica la pagina dopo qualche secondo.");
     }
 });
 
@@ -288,11 +288,11 @@ if ('serviceWorker' in navigator) {
 // Inizializzazione
 function init() {
     // Controlla se c'Ã¨ una sessione salvata
-    const session = localStorage.getItem('portale_session');
+    const session = localStorage.getItem('portale_procedure_rc1_session');
     if (session) {
         try { currentUser = JSON.parse(session); } catch(e) { currentUser = null; }
         if (currentUser && currentUser.sessionToken) showHomeScreen();
-        else { localStorage.removeItem('portale_session'); currentUser = null; showLoginScreen(); }
+        else { localStorage.removeItem('portale_procedure_rc1_session'); currentUser = null; showLoginScreen(); }
     } else {
         showLoginScreen();
     }
@@ -373,7 +373,7 @@ loginForm.addEventListener('submit', async (e) => {
             if (!data.token) throw new Error('Backend non aggiornato: sessione mancante.');
             currentUser = {...data.user, sessionToken:data.token};
             markAccessValidated(currentUser.sessionToken);
-            localStorage.setItem('portale_session', JSON.stringify(currentUser));
+            localStorage.setItem('portale_procedure_rc1_session', JSON.stringify(currentUser));
             await showHomeScreen(true);
         } else {
             loginError.textContent = data.message || "Credenziali errate.";
@@ -389,7 +389,7 @@ loginForm.addEventListener('submit', async (e) => {
 });
 
 btnLogout.addEventListener('click', () => {
-    localStorage.removeItem('portale_session');
+    localStorage.removeItem('portale_procedure_rc1_session');
     currentUser = null;
     closeProtectedScreens();
     showLoginScreen();
@@ -425,6 +425,18 @@ async function loadApps() {
     }
 }
 
+/* Standard symbols on the company's blue/orange faceted drop. */
+function utilityIconForApp(app) {
+    const name = String(app.nome || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    const kind = app.link === 'native://comunicazioni' || /comunicazion/.test(name) ? 'communications' : /richiest/.test(name) && /paus/.test(name) ? 'requests' : '';
+    if (!kind) return '';
+    const symbol = kind === 'communications'
+        ? '<path d="M26 43h9l17-8v28l-17-8h-9z"/><path d="m32 55 4 12h7l-4-10M57 41l7-4m-7 12h9m-9 8 7 4"/>'
+        : '<rect x="26" y="33" width="40" height="33" rx="5"/><path d="M26 43h40M35 29v9m22-9v9M40 51v8m12-8v8"/>';
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 92 92"><defs><linearGradient id="b" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#b9edff"/><stop offset=".45" stop-color="#318fbc"/><stop offset="1" stop-color="#123c69"/></linearGradient><linearGradient id="o" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ffd49a"/><stop offset="1" stop-color="#d87d35"/></linearGradient></defs><path d="M46 4 75 55c13 25-5 34-29 34S4 80 17 55z" fill="url(#b)" stroke="#b2dce9" stroke-opacity=".7"/><path d="m46 4-9 55 9 30-29-34z" fill="#a6d9e8" opacity=".42"/><path d="m46 4 8 55-8 30 29-34z" fill="#102c56" opacity=".46"/><path d="m18 64 28 18 28-18c-2 18-13 25-28 25S20 82 18 64" fill="url(#o)"/><g fill="none" stroke="#f3fbff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">'+symbol+'</g></svg>';
+    return 'data:image/svg+xml,' + encodeURIComponent(svg);
+}
+
 function renderApps(apps) {
     if (apps.length === 0) {
         appsContainer.innerHTML = '<p style="grid-column: 1/-1; text-align: center; color: var(--text-muted);">Nessuna applicazione disponibile.</p>';
@@ -442,7 +454,8 @@ function renderApps(apps) {
                 e.preventDefault();
                 runAppTransition(card, async () => {
                 if (!await validateCurrentAccess()) return false;
-                const targetUrl = app.link;
+                // PROCEDURES ADDITION — single-use identity ticket for the new Cruscotto.
+                const targetUrl = window.IdroclimaPrepareTechnicalLink ? await window.IdroclimaPrepareTechnicalLink(app.id,app.link) : app.link;
                 const targetName = app.nome;
 
                 authenticatedFetch(API_URL, {
@@ -466,11 +479,12 @@ function renderApps(apps) {
 
 
                     if (targetUrl === 'native://timbrature') {
-                        openTimbratureNative();
+                        return openTimbratureNative();
                     } else if (targetUrl === 'native://procedure') {
-                        openDriveViewerNative('procedure', targetName);
+                        if (window.IdroclimaOpenProcedures) return window.IdroclimaOpenProcedures();
+                        else return openDriveViewerNative('procedure', targetName);
                     } else if (targetUrl === 'native://comunicazioni') {
-                        openDriveViewerNative('comunicazioni', targetName);
+                        return openDriveViewerNative('comunicazioni', targetName);
                     } else if (targetUrl === 'native://modulirapidi') {
                         openModuliRapidiNative();
                     } else {
@@ -481,11 +495,11 @@ function renderApps(apps) {
         } else {
             card.onclick = (e) => {
                 e.preventDefault();
-                alert(`Accesso non abilitato al profilo '${currentUser.profilo}' per questa App.`);
+                IdroclimaMessages.alert(`Accesso non abilitato al profilo '${currentUser.profilo}' per questa App.`);
             };
         }
 
-        const iconClass = app.icona ? app.icona : 'fa-folder';
+        const iconClass = utilityIconForApp(app) || app.icona || 'fa-folder';
         const iconColor = app.colore ? app.colore : 'var(--primary-color)';
 
         let isImage = false;
@@ -527,9 +541,7 @@ function renderApps(apps) {
         adminCard.href = '#';
         adminCard.onclick = (e) => {
             e.preventDefault();
-            runAppTransition(adminCard, () => {
-                showAdminScreen();
-            });
+            runAppTransition(adminCard, () => showAdminScreen());
         };
         adminCard.innerHTML = `
             <div class="app-icon" style="background-color: #10b981;">
@@ -557,40 +569,32 @@ function bindAppTap(card) {
     card.onclick=event=>{if(Date.now()-lastTouch<700){event.preventDefault();return;}return open(event);};
 }
 
-// Logica Transizione Premium
+// L'attesa copre solo il lavoro reale: nessuna durata minima o animazione in coda.
 let appTransitionRunning = false;
 async function runAppTransition(sourceElement, callback) {
     if (appTransitionRunning) return;
-    const icon = sourceElement.querySelector('img') || sourceElement.querySelector('.app-icon');
-    if (!icon) return callback();
     appTransitionRunning = true;
-    const rect = icon.getBoundingClientRect(), clone = icon.cloneNode(true);
-    const bgColor = window.getComputedStyle(icon).backgroundColor;
-    Object.assign(clone.style,{margin:'0',position:'fixed',top:rect.top+'px',left:rect.left+'px',width:rect.width+'px',height:rect.height+'px'});
-    if (icon.classList.contains('app-icon')) clone.style.backgroundColor=bgColor;
-    clone.classList.add('transition-clone');document.body.appendChild(clone);
+    const artwork = window.IdroclimaLoading?.artwork();
+    if (artwork) transitionIconContainer.replaceChildren(artwork);
+    transitionOverlay.setAttribute('role','status');
+    transitionOverlay.setAttribute('aria-label','Apertura applicazione in corso');
     transitionOverlay.classList.remove('hidden');
-    const timers=[];
-    const later=(fn,ms)=>timers.push(setTimeout(fn,ms));
-    later(()=>transitionOverlay.classList.add('active'),10);
-    later(()=>clone.classList.add('moving'),50);
-    later(()=>clone.classList.add('spinning'),850);
-    later(()=>clone.classList.add('zooming'),2100);
-    const animationDone=new Promise(resolve=>later(resolve,3200));
-    const cleanup=()=>{
-        timers.forEach(clearTimeout);
-        transitionOverlay.classList.remove('active');
-        setTimeout(()=>{transitionOverlay.classList.add('hidden');clone.remove();appTransitionRunning=false;},600);
-    };
+    transitionOverlay.classList.add('active');
     try {
-        // Start server checks and app loading now, under the original animation.
-        const result = await callback();
-        if (result !== false) await animationDone;
-    } catch(error) {console.error('Apertura app:',error);}
-    finally {cleanup();}
+        // Il callback viene eseguito subito: l'animazione non ritarda le richieste.
+        return await callback();
+    } catch(error) { console.error('Apertura app:',error); }
+    finally {
+        transitionOverlay.classList.remove('active');
+        transitionOverlay.classList.add('hidden');
+        transitionIconContainer.replaceChildren();
+        appTransitionRunning = false;
+        window.dispatchEvent(new Event('IDROCLIMA_APP_TRANSITION_DONE'));
+    }
 }
 
 // Logica Apertura App in iFrame
+let iframeWaitCleanup = null;
 function openAppInIframe(nome, url, appId = '') {
     document.body.style.overflow = 'hidden';
     hideHomeForFullscreenView();
@@ -639,10 +643,31 @@ function openAppInIframe(nome, url, appId = '') {
     appIframe.style.zoom = '1';
     appIframe.setAttribute('scrolling', 'yes');
 
+    // L'iframe naviga subito; l'attesa interna termina al suo evento load/error.
+    // La barra di chiusura rimane utilizzabile anche con una rete lenta.
+    iframeWaitCleanup?.();
+    const waiting = document.createElement('div');
+    waiting.className = 'app-frame-wait';
+    waiting.setAttribute('role','status');
+    waiting.setAttribute('aria-label','Caricamento applicazione');
+    const artwork = window.IdroclimaLoading?.artwork();
+    if (artwork) waiting.appendChild(artwork);
+    const label = document.createElement('p');label.textContent = 'Caricamento applicazione…';waiting.appendChild(label);
+    wrapper.appendChild(waiting);
+    const complete = () => {
+        waiting.remove();
+        appIframe.removeEventListener('load',complete);
+        appIframe.removeEventListener('error',complete);
+        if (iframeWaitCleanup === complete) iframeWaitCleanup = null;
+    };
+    iframeWaitCleanup = complete;
+    appIframe.addEventListener('load',complete);
+    appIframe.addEventListener('error',complete);
     appIframe.src = url;
 }
 
 btnCloseIframe.addEventListener('click', () => {
+    iframeWaitCleanup?.();
     iframeScreen.classList.add('hidden');
     appIframe.src = ''; // Svuota per fermare processi in background
     iframeScreen.style.zIndex = ''; // Ripristina z-index se modificato
@@ -783,11 +808,11 @@ function showAdminScreen() {
     hideHomeForFullscreenView();
     homeScreen.classList.add('hidden');
     adminScreen.classList.remove('hidden');
-    loadAdminData();
+    return loadAdminData();
 }
 
-btnAdminBack.addEventListener('click', () => {
-    if (adminDirty && !confirm('Hai modifiche non salvate. Vuoi uscire e scartarle?')) return;
+btnAdminBack.addEventListener('click', async () => {
+    if (adminDirty && !await IdroclimaMessages.confirm('Hai modifiche non salvate. Vuoi uscire e scartarle?')) return;
     setAdminDirty(false);
     adminScreen.classList.add('hidden');
     document.body.classList.remove('fullscreen-active');
@@ -813,7 +838,7 @@ if (btnSharePortal) {
                 btnSharePortal.style.color = '';
             }, 2000);
         }).catch(err => {
-            alert("Errore durante la copia del link: " + err);
+            IdroclimaMessages.alert("Errore durante la copia del link: " + err);
         });
     });
 }
@@ -836,6 +861,7 @@ async function loadAdminData() {
         if (data.status === 'success') {
             adminData = {
                 utenti: data.utenti,
+                accountsReadOnly: data.accountsReadOnly === true,
                 profili: data.profili,
                 apps: data.apps,
                 permessi: data.permessi,
@@ -847,11 +873,11 @@ async function loadAdminData() {
             setAdminDirty(false);
             renderAdminDashboard();
         } else {
-            alert("Errore Admin: " + data.message);
+            IdroclimaMessages.alert("Errore Admin: " + data.message);
             btnAdminBack.click();
         }
     } catch (e) {
-        alert("Errore caricamento dati admin.");
+        IdroclimaMessages.alert("Errore caricamento dati admin.");
         btnAdminBack.click();
     } finally {
         adminLoading.classList.add('hidden');
@@ -975,6 +1001,13 @@ function renderUtenti() {
         container.appendChild(card);
     });
     compactAdminCards('utenti-container');
+    if (adminData.accountsReadOnly) {
+        container.querySelectorAll('input,select,button').forEach(control=>control.disabled=true);
+        const add=document.getElementById('btn-add-user');if(add){add.hidden=true;add.disabled=true;add.style.display='none';}
+        let note=document.getElementById('trial-accounts-note');
+        if(!note){note=document.createElement('p');note.id='trial-accounts-note';note.className='admin-hint';container.before(note);}
+        note.textContent='Account e personale reali in sola lettura. App, gruppi e permessi sono modificabili soltanto in questa copia di prova.';
+    }
 
     // Aggiungi event listeners
     document.querySelectorAll('.u-input').forEach(el => el.addEventListener('change', updateUtenteData));
@@ -1105,9 +1138,9 @@ function updateGruppoData(e) {
     if (field === 'ID_PROFILO') { renderUtenti(); renderPermessi(); }
 }
 
-window.removeGruppo = function (idx) {
-    if (adminData.utenti.some(u => u.PROFILO === adminData.profili[idx].ID_PROFILO)) {alert('Sposta prima gli utenti in un altro gruppo.');return;}
-    if (confirm("Sei sicuro di eliminare questo gruppo?")) {
+window.removeGruppo = async function (idx) {
+    if (adminData.utenti.some(u => u.PROFILO === adminData.profili[idx].ID_PROFILO)) {IdroclimaMessages.alert('Sposta prima gli utenti in un altro gruppo.');return;}
+    if (await IdroclimaMessages.confirm("Sei sicuro di eliminare questo gruppo?")) {
         adminData.profili.splice(idx, 1);
         setAdminDirty(true);
         renderGruppi();
@@ -1181,8 +1214,8 @@ function updateAppData(e) {
     }
 }
 
-window.removeUtente = function (idx) {
-    if (confirm("Sei sicuro di eliminare questo utente? Verranno rimossi anche i suoi permessi specifici.")) {
+window.removeUtente = async function (idx) {
+    if (await IdroclimaMessages.confirm("Sei sicuro di eliminare questo utente? Verranno rimossi anche i suoi permessi specifici.")) {
         let utenteRemoved = adminData.utenti[idx];
         adminData.permessi = adminData.permessi.filter(p => p.ID_UTENTE !== utenteRemoved.ID_UTENTE);
         adminData.utenti.splice(idx, 1);
@@ -1192,8 +1225,8 @@ window.removeUtente = function (idx) {
     }
 };
 
-window.removeApp = function (idx) {
-    if (confirm("Sei sicuro di eliminare questa App? Verranno rimossi anche i relativi permessi.")) {
+window.removeApp = async function (idx) {
+    if (await IdroclimaMessages.confirm("Sei sicuro di eliminare questa App? Verranno rimossi anche i relativi permessi.")) {
         let appRemoved = adminData.apps[idx];
         // Rimuovi anche i permessi orfani
         adminData.permessi = adminData.permessi.filter(p => p.ID_APP !== appRemoved.ID_APP);
@@ -1257,7 +1290,7 @@ btnAdminSave.addEventListener('click', async () => {
     btnAdminSave.disabled = true;
 
     const validation = validateAdminData();
-    if (validation) {alert(validation);btnAdminSave.disabled=false;btnAdminSave.textContent='Salva';return;}
+    if (validation) {IdroclimaMessages.alert(validation);btnAdminSave.disabled=false;btnAdminSave.textContent='Salva';return;}
     const permessiEstesi = buildAdminPermissions(adminData,groupPerms);
 
     try {
@@ -1267,7 +1300,7 @@ btnAdminSave.addEventListener('click', async () => {
                 action: 'SAVE_ADMIN_DATA',
                 revision: adminData.revision,
                 adminUserId: currentUser.id || currentUser.ID_UTENTE,
-                utenti_aggiornati: adminData.utenti,
+                utenti_aggiornati: adminData.accountsReadOnly ? undefined : adminData.utenti,
                 apps_aggiornate: adminData.apps,
                 profili_aggiornati: adminData.profili,
                 permessi_aggiornati: permessiEstesi
@@ -1279,12 +1312,12 @@ btnAdminSave.addEventListener('click', async () => {
             adminData.permessi = permessiEstesi;
             setAdminDirty(false);
             await loadAdminData();
-            alert('Salvataggio completato con successo!');
+            IdroclimaMessages.alert('Salvataggio completato con successo!');
         } else {
-            alert('Errore al salvataggio: ' + data.message);
+            IdroclimaMessages.alert('Errore al salvataggio: ' + data.message);
         }
     } catch (e) {
-        alert('Errore di rete al salvataggio.');
+        IdroclimaMessages.alert('Errore di rete al salvataggio.');
     } finally {
         btnAdminSave.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Salva';
         btnAdminSave.disabled = false;
@@ -1339,7 +1372,7 @@ function openDriveViewerNative(type, title) {
         }
     }
 
-    fetchDriveFiles(type);
+    return fetchDriveFiles(type);
 }
 
 if (btnCloseDriveViewer) {
@@ -1544,7 +1577,7 @@ if (keywordInput) {
 
 if (btnSaveKeywords) {
     btnSaveKeywords.addEventListener('click', async () => {
-        btnSaveKeywords.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+        btnSaveKeywords.textContent = 'Salvataggio…';
         btnSaveKeywords.disabled = true;
 
         try {
@@ -1576,10 +1609,10 @@ if (btnSaveKeywords) {
                     renderDriveFiles(currentDriveFiles);
                 }
             } else {
-                alert('Errore salvataggio: ' + data.message);
+                IdroclimaMessages.alert('Errore salvataggio: ' + data.message);
             }
         } catch (error) {
-            alert('Errore di rete al salvataggio.');
+            IdroclimaMessages.alert('Errore di rete al salvataggio.');
         } finally {
             btnSaveKeywords.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Salva';
             btnSaveKeywords.disabled = false;
@@ -1673,7 +1706,7 @@ function getDip() {
     const id = currentUser.id || currentUser.ID_UTENTE;
     const nome = currentUser.nome;
     if (!id) {
-        alert("Errore: Utente non riconosciuto!");
+        IdroclimaMessages.alert("Errore: Utente non riconosciuto!");
         return null;
     }
     return { id, nome };
@@ -1712,15 +1745,15 @@ async function sendModuloRequest(moduloType, payload, btn) {
         });
         const data = await response.json();
         if (data.status === 'success') {
-            alert('Richiesta inviata con successo!');
+            IdroclimaMessages.alert('Richiesta inviata con successo!');
             goMenu(); // Torna al menu
             return true;
         } else {
-            alert('Errore: ' + data.message);
+            IdroclimaMessages.alert('Errore: ' + data.message);
             return false;
         }
     } catch (error) {
-        alert('Errore di rete. Riprova più tardi.');
+        IdroclimaMessages.alert('Errore di rete. Riprova più tardi.');
         return false;
     } finally {
         resetBtn(btn);
@@ -1729,7 +1762,7 @@ async function sendModuloRequest(moduloType, payload, btn) {
 
 async function inviaSuggerimento(btn) {
     const testo = document.getElementById('sug_testo').value.trim();
-    if (!testo) return alert("Scrivi un suggerimento!");
+    if (!testo) return IdroclimaMessages.alert("Scrivi un suggerimento!");
     setBtnLoading(btn, 'INVIO...');
     const ok = await sendModuloRequest('suggerimenti', { testo }, btn);
     if (ok) document.getElementById('sug_testo').value = '';
@@ -1738,7 +1771,7 @@ async function inviaSuggerimento(btn) {
 async function inviaAttrezzi(btn) {
     const dip = getDip(); if (!dip) return;
     const desc = document.getElementById('att_desc').value.trim();
-    if (!desc) return alert("Descrivi l'attrezzo!");
+    if (!desc) return IdroclimaMessages.alert("Descrivi l'attrezzo!");
     const file = document.getElementById('att_foto').files[0];
     setBtnLoading(btn, 'INVIO IN CORSO...');
     const b64 = await getBase64(file);
@@ -1750,7 +1783,7 @@ async function inviaMezzi(btn) {
     const dip = getDip(); if (!dip) return;
     const targa = document.getElementById('mez_targa').value.trim();
     const desc = document.getElementById('mez_desc').value.trim();
-    if (!targa || !desc) return alert("Inserisci targa e descrizione!");
+    if (!targa || !desc) return IdroclimaMessages.alert("Inserisci targa e descrizione!");
     const file = document.getElementById('mez_foto').files[0];
     setBtnLoading(btn, 'INVIO IN CORSO...');
     const b64 = await getBase64(file);
@@ -1763,7 +1796,7 @@ async function inviaPermessi(btn) {
     const tipo = document.getElementById('per_tipo').value;
     const dal = document.getElementById('per_dal').value;
     const al = document.getElementById('per_al').value;
-    if (!dal || !al) return alert("Inserisci le date!");
+    if (!dal || !al) return IdroclimaMessages.alert("Inserisci le date!");
     setBtnLoading(btn, 'INVIO...');
     const ok = await sendModuloRequest('permessi', { id: dip.id, nome: dip.nome, tipologia: tipo, dal: dal, al: al, causale: document.getElementById('per_note').value }, btn);
     if (ok) { document.getElementById('per_dal').value = ''; document.getElementById('per_al').value = ''; document.getElementById('per_note').value = ''; }
@@ -1809,13 +1842,13 @@ window.navigateFolder = function(id, name) {
 async function resendEmployeeInvite(index, button) {
   const user = adminData.utenti[index];
   if (!user) return;
-  if (adminDirty) {alert('Salva prima le modifiche: l’invito usa le credenziali già salvate.');return;}
+  if (adminDirty) {IdroclimaMessages.alert('Salva prima le modifiche: l’invito usa le credenziali già salvate.');return;}
   button.disabled = true;
   try {
     const response = await authenticatedFetch(API_URL, {method:'POST',body:JSON.stringify({action:'RESEND_EMPLOYEE_INVITE',adminUserId:currentUser.id || currentUser.ID_UTENTE,employeeId:user.ID_UTENTE})});
     const result = await response.json();
-    alert(result.message || (result.status === 'success' ? 'Invito inviato' : 'Invio fallito'));
-  } catch(e) {alert('Invio fallito: ' + e.message);} finally {button.disabled=false;}
+    IdroclimaMessages.alert(result.message || (result.status === 'success' ? 'Invito inviato' : 'Invio fallito'));
+  } catch(e) {IdroclimaMessages.alert('Invio fallito: ' + e.message);} finally {button.disabled=false;}
 }
 
 
@@ -1825,6 +1858,7 @@ let accessValidatedAt = 0, accessValidatedToken = '';
 function markAccessValidated(token) {accessValidatedToken=token;accessValidatedAt=Date.now();}
 const ACCESS_DENIED_CODES = ['INACTIVITY','NOT_IN_ROSTER','ACCESS_NOT_STARTED','BADGE_REASSIGNED','ACCOUNT_DISABLED','ACCOUNT_REMOVED','SESSION_INVALID'];
 function closeProtectedScreens() {
+    window.IdroclimaCloseProcedures?.();
     for (const id of ['home-screen','iframe-screen','drive-viewer-screen','timbrature-screen','admin-screen','monitor-screen','moduli-rapidi-screen']) {
         const element = document.getElementById(id); if (element) element.classList.add('hidden');
     }
@@ -1849,7 +1883,7 @@ document.getElementById('portal-connection-retry')?.addEventListener('click',asy
 });
 
 function revokeCurrentAccess(message) {
-    localStorage.removeItem('portale_session'); currentUser = null;
+    localStorage.removeItem('portale_procedure_rc1_session'); currentUser = null;
     hideConnectionStatus();
     closeProtectedScreens(); showLoginScreen();
     loginError.textContent = message || 'Accesso revocato. Accedi nuovamente.';
@@ -1901,6 +1935,6 @@ async function validateCurrentAccess(force = false) {
 setInterval(() => {if (currentUser && !document.hidden) validateCurrentAccess(true);},60000);
 document.addEventListener('visibilitychange',() => {if (!document.hidden && currentUser) validateCurrentAccess(true);});
 window.addEventListener('focus',() => {if (currentUser) validateCurrentAccess(true);});
-window.addEventListener('storage',event => {if (event.key === 'portale_session' && !event.newValue && currentUser) revokeCurrentAccess('Sessione chiusa. Accedi nuovamente.');});
+window.addEventListener('storage',event => {if (event.key === 'portale_procedure_rc1_session' && !event.newValue && currentUser) revokeCurrentAccess('Sessione chiusa. Accedi nuovamente.');});
 
 init();

@@ -1,10 +1,21 @@
-const CACHE_NAME = 'portale-aziendale-v35-onboarding';
+const CACHE_SCOPE = 'idroclima-procedures-'+new URL(self.registration.scope).pathname.replace(/[^a-z0-9]/gi,'_');
+const CACHE_NAME = CACHE_SCOPE+'-pwa46';
 const ASSETS_TO_CACHE = [
     './',
     './index.html',
     './style.css',
     './app.js',
     './admin-tools.js',
+    './messages.js',
+    './messages.css',
+    './loading-ui.js',
+    './loading-ui.css',
+    './idroclima-drop-180.png',
+    './release-config.js',
+    './procedures-day.js',
+    './procedures-day.css',
+    './pdf.min.mjs',
+    './pdf.worker.min.mjs',
     './jsQR.js',
     './manifest.json',
     './idroclima-app-192.png',
@@ -14,7 +25,7 @@ const ASSETS_TO_CACHE = [
 
 self.addEventListener('install', (evt) => {
     evt.waitUntil(
-        caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS_TO_CACHE))
+        caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS_TO_CACHE.map(asset=>new Request(new URL(asset,self.registration.scope),{cache:'reload'}))))
     );
     self.skipWaiting();
 });
@@ -22,7 +33,7 @@ self.addEventListener('install', (evt) => {
 self.addEventListener('activate', (evt) => {
     evt.waitUntil(
         caches.keys().then((keyList) => Promise.all(
-            keyList.map((key) => key !== CACHE_NAME ? caches.delete(key) : undefined)
+            keyList.map((key) => key.startsWith(CACHE_SCOPE+'-') && key !== CACHE_NAME && key !== CACHE_SCOPE+'-account' ? caches.delete(key) : undefined)
         ))
     );
     self.clients.claim();
@@ -50,19 +61,19 @@ self.addEventListener('fetch', (evt) => {
 
     if (isFreshAsset) {
         evt.respondWith(
-            fetch(evt.request)
+            fetch(evt.request,{cache:'no-cache'})
                 .then((networkResponse) => {
                     const responseCopy = networkResponse.clone();
                     caches.open(CACHE_NAME).then((cache) => cache.put(evt.request, responseCopy));
                     return networkResponse;
                 })
-                .catch(() => caches.match(evt.request))
+                .catch(() => caches.open(CACHE_NAME).then(cache=>cache.match(evt.request,{ignoreSearch:true})))
         );
         return;
     }
 
     evt.respondWith(
-        caches.match(evt.request).then((cachedResponse) => {
+        caches.open(CACHE_NAME).then(cache=>cache.match(evt.request,{ignoreSearch:true})).then((cachedResponse) => {
             return cachedResponse || fetch(evt.request).then((networkResponse) => {
                 if (isLocalAsset) {
                     const responseCopy = networkResponse.clone();
@@ -73,3 +84,10 @@ self.addEventListener('fetch', (evt) => {
         })
     );
 });
+
+/* PROCEDURES ADDITION: only generic payloads; never cache documents or API tokens. */
+const ACCOUNT_CACHE=CACHE_SCOPE+'-account';
+const ACCOUNT_URL=new URL('__push_account__',self.registration.scope).href;
+self.addEventListener('message',evt=>{if(!evt.source?.url?.startsWith(self.registration.scope))return;if(evt.data?.type==='IDROCLIMA_PUSH_ACCOUNT')evt.waitUntil(caches.open(ACCOUNT_CACHE).then(c=>evt.data.userId?c.put(ACCOUNT_URL,new Response(JSON.stringify({userId:String(evt.data.userId)}))):c.delete(ACCOUNT_URL)));});
+self.addEventListener('push',evt=>{evt.waitUntil((async()=>{let data;try{data=evt.data.json();}catch{return;}const cache=await caches.open(ACCOUNT_CACHE),stored=await cache.match(ACCOUNT_URL);if(!stored||String((await stored.json()).userId)!==String(data.userId))return;await self.registration.showNotification('Procedure per i lavori di oggi',{body:'Apri le procedure collegate alla tua giornata.',icon:new URL('idroclima-app-192.png',self.registration.scope).href,badge:new URL('idroclima-drop-48.png',self.registration.scope).href,tag:data.tag,renotify:true,requireInteraction:true,data:{userId:String(data.userId)}});})());});
+self.addEventListener('notificationclick',evt=>{evt.notification.close();evt.waitUntil((async()=>{const cache=await caches.open(ACCOUNT_CACHE),stored=await cache.match(ACCOUNT_URL);if(!stored||String((await stored.json()).userId)!==evt.notification.data?.userId)return;const url=new URL('index.html?procedures=today',self.registration.scope).href;const windows=await self.clients.matchAll({type:'window',includeUncontrolled:true});const existing=windows.find(w=>w.url.startsWith(self.registration.scope));if(existing){await existing.focus();existing.postMessage({type:'IDROCLIMA_PROCEDURES_OPEN'});}else await self.clients.openWindow(url);})());});
